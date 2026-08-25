@@ -1,0 +1,356 @@
+/* ============================================================
+   MóvelCarente — sistema de design
+   Paleta: verde-pinho (confiança/crescimento) + ocre (calor humano)
+   sobre papel quente. Serifada com personalidade no título,
+   sans neutra no corpo, monoespaçada em dados/contagens.
+   ============================================================ */
+
+:root {
+  /* Paleta */
+  --mc-verde-900: #14352a;
+  --mc-verde-800: #1f4d3d;
+  --mc-verde-700: #2a6350;
+  --mc-verde-100: #dfece5;
+  --mc-verde-050: #eef4f0;
+
+  --mc-ocre-700: #a5701f;
+  --mc-ocre-600: #c98a2c;
+  --mc-ocre-400: #e7b564;
+  --mc-ocre-100: #f8e8cd;
+
+  --mc-tijolo-700: #8f3a26;
+  --mc-tijolo-600: #b3452f;
+  --mc-tijolo-100: #f4ddd6;
+
+  --mc-papel: #f7f4ee;
+  --mc-papel-alto: #fffdf9;
+  --mc-superficie: #ffffff;
+  --mc-borda: #e3ddc9;
+  --mc-tinta: #24302b;
+  --mc-tinta-suave: #5b6b62;
+  --mc-tinta-fraca: #8a988e;
+
+  /* Tipografia */
+  --mc-fonte-display: 'Fraunces', 'Georgia', serif;
+  --mc-fonte-corpo: 'Work Sans', system-ui, -apple-system, sans-serif;
+  --mc-fonte-dado: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Bootstrap: variáveis globais reaproveitadas por vários componentes */
+  --bs-body-font-family: var(--mc-fonte-corpo);
+  --bs-body-bg: var(--mc-papel);
+  --bs-body-color: var(--mc-tinta);
+  --bs-border-color: var(--mc-borda);
+  --bs-primary: var(--mc-verde-800);
+  --bs-primary-rgb: 31, 77, 61;
+  --bs-secondary: var(--mc-tinta-suave);
+  --bs-success: var(--mc-verde-700);
+  --bs-success-rgb: 42, 99, 80;
+  --bs-warning: var(--mc-ocre-600);
+  --bs-warning-rgb: 201, 138, 44;
+  --bs-danger: var(--mc-tijolo-600);
+  --bs-danger-rgb: 179, 69, 47;
+  --bs-link-color: var(--mc-verde-800);
+  --bs-link-hover-color: var(--mc-verde-900);
+  --bs-border-radius: 0.6rem;
+  --bs-border-radius-sm: 0.4rem;
+  --bs-border-radius-lg: 0.9rem;
+}
+
+body {
+  background-color: var(--mc-papel);
+  color: var(--mc-tinta);
+}
+
+h1, h2, h3, h4, .mc-display {
+  font-family: var(--mc-fonte-display);
+  font-weight: 600;
+  color: var(--mc-verde-900);
+  letter-spacing: -0.01em;
+}
+
+.mc-dado {
+  font-family: var(--mc-fonte-dado);
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: var(--bs-link-color);
+}
+a:hover {
+  color: var(--bs-link-hover-color);
+}
+
+/* Foco visível consistente (acessibilidade) */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+.form-control:focus-visible {
+  outline: 2px solid var(--mc-ocre-600);
+  outline-offset: 2px;
+}
+
+/* ---------- Botões ---------- */
+.btn {
+  font-weight: 500;
+  border-radius: var(--bs-border-radius);
+}
+.btn-primary {
+  --bs-btn-bg: var(--mc-verde-800);
+  --bs-btn-border-color: var(--mc-verde-800);
+  --bs-btn-hover-bg: var(--mc-verde-900);
+  --bs-btn-hover-border-color: var(--mc-verde-900);
+  --bs-btn-active-bg: var(--mc-verde-900);
+  --bs-btn-active-border-color: var(--mc-verde-900);
+  --bs-btn-disabled-bg: var(--mc-verde-700);
+  --bs-btn-disabled-border-color: var(--mc-verde-700);
+  --bs-btn-focus-shadow-rgb: 31, 77, 61;
+}
+.btn-outline-primary {
+  --bs-btn-color: var(--mc-verde-800);
+  --bs-btn-border-color: var(--mc-verde-800);
+  --bs-btn-hover-bg: var(--mc-verde-800);
+  --bs-btn-hover-border-color: var(--mc-verde-800);
+  --bs-btn-active-bg: var(--mc-verde-900);
+  --bs-btn-active-border-color: var(--mc-verde-900);
+}
+.btn-secondary {
+  --bs-btn-bg: var(--mc-tinta-suave);
+  --bs-btn-border-color: var(--mc-tinta-suave);
+  --bs-btn-hover-bg: var(--mc-tinta);
+  --bs-btn-hover-border-color: var(--mc-tinta);
+}
+.btn-outline-secondary {
+  --bs-btn-color: var(--mc-tinta-suave);
+  --bs-btn-border-color: var(--mc-borda);
+  --bs-btn-hover-bg: var(--mc-papel-alto);
+  --bs-btn-hover-color: var(--mc-tinta);
+  --bs-btn-hover-border-color: var(--mc-tinta-suave);
+}
+.btn-danger {
+  --bs-btn-bg: var(--mc-tijolo-600);
+  --bs-btn-border-color: var(--mc-tijolo-600);
+  --bs-btn-hover-bg: var(--mc-tijolo-700);
+  --bs-btn-hover-border-color: var(--mc-tijolo-700);
+}
+.btn-outline-danger {
+  --bs-btn-color: var(--mc-tijolo-600);
+  --bs-btn-border-color: var(--mc-tijolo-600);
+  --bs-btn-hover-bg: var(--mc-tijolo-600);
+  --bs-btn-hover-border-color: var(--mc-tijolo-600);
+}
+.btn-warning {
+  --bs-btn-bg: var(--mc-ocre-600);
+  --bs-btn-border-color: var(--mc-ocre-600);
+  --bs-btn-color: #fff;
+  --bs-btn-hover-bg: var(--mc-ocre-700);
+  --bs-btn-hover-border-color: var(--mc-ocre-700);
+  --bs-btn-hover-color: #fff;
+}
+.btn-link {
+  color: var(--mc-verde-800);
+}
+
+/* ---------- Cartões ---------- */
+.card {
+  background-color: var(--mc-superficie);
+  border-color: var(--mc-borda);
+  border-radius: var(--bs-border-radius-lg);
+}
+
+/* ---------- Formulários ---------- */
+.form-control,
+.form-select {
+  border-color: var(--mc-borda);
+  background-color: var(--mc-papel-alto);
+}
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--mc-verde-700);
+  box-shadow: 0 0 0 0.2rem rgba(31, 77, 61, 0.15);
+}
+.form-label {
+  font-weight: 500;
+  color: var(--mc-verde-900);
+  font-size: 0.92rem;
+}
+.form-text {
+  color: var(--mc-tinta-fraca);
+}
+
+/* ---------- Badges de status (usadas por StatusBadge.jsx) ---------- */
+.mc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+.mc-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.mc-badge--verde { background: var(--mc-verde-100); color: var(--mc-verde-800); }
+.mc-badge--ocre { background: var(--mc-ocre-100); color: var(--mc-ocre-700); }
+.mc-badge--tijolo { background: var(--mc-tijolo-100); color: var(--mc-tijolo-700); }
+.mc-badge--neutro { background: #ece8dc; color: var(--mc-tinta-suave); }
+
+/* ---------- Navegação ---------- */
+.mc-sidebar {
+  background: var(--mc-verde-900);
+  color: var(--mc-verde-050);
+  min-height: 100vh;
+}
+.mc-sidebar .nav-link {
+  color: rgba(238, 244, 240, 0.78);
+  border-radius: var(--bs-border-radius);
+  padding: 0.55rem 0.85rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.mc-sidebar .nav-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.mc-sidebar .nav-link.active {
+  background: var(--mc-ocre-600);
+  color: #fff;
+}
+.mc-sidebar .mc-marca {
+  color: #fff;
+}
+
+.mc-topbar {
+  background: var(--mc-papel-alto);
+  border-bottom: 1px solid var(--mc-borda);
+}
+
+.mc-public-navbar {
+  background: var(--mc-verde-900) !important;
+}
+.mc-public-navbar .navbar-brand,
+.mc-public-navbar .nav-link {
+  color: rgba(238, 244, 240, 0.85) !important;
+}
+.mc-public-navbar .nav-link:hover,
+.mc-public-navbar .nav-link.active {
+  color: #fff !important;
+}
+
+/* ---------- Tabelas ---------- */
+.table {
+  --bs-table-bg: transparent;
+}
+.table > thead {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--mc-tinta-suave);
+}
+
+/* ---------- Paginação ---------- */
+.pagination .page-link {
+  color: var(--mc-verde-800);
+  border-color: var(--mc-borda);
+}
+.pagination .page-item.active .page-link {
+  background-color: var(--mc-verde-800);
+  border-color: var(--mc-verde-800);
+}
+
+/* ---------- Estado vazio ---------- */
+.mc-vazio {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: var(--mc-tinta-suave);
+  border: 1px dashed var(--mc-borda);
+  border-radius: var(--bs-border-radius-lg);
+  background: var(--mc-papel-alto);
+}
+
+/* ---------- Cartão de item ---------- */
+.mc-item-card {
+  height: 100%;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.mc-item-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px -12px rgba(20, 53, 42, 0.35);
+}
+.mc-item-card__imagem {
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: var(--mc-verde-050);
+  border-radius: var(--bs-border-radius-lg) var(--bs-border-radius-lg) 0 0;
+}
+.mc-item-card__placeholder {
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mc-verde-050);
+  color: var(--mc-verde-700);
+  font-size: 2rem;
+  border-radius: var(--bs-border-radius-lg) var(--bs-border-radius-lg) 0 0;
+}
+
+/* ---------- Estrelas de avaliação ---------- */
+.mc-estrelas {
+  color: var(--mc-ocre-600);
+  font-size: 1.05rem;
+  letter-spacing: 0.1em;
+}
+.mc-estrelas button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* ---------- Toasts ---------- */
+.mc-toast-container {
+  z-index: 1080;
+}
+
+/* ---------- Marca ---------- */
+.mc-marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--mc-fonte-display);
+  font-weight: 600;
+  font-size: 1.15rem;
+  color: var(--mc-verde-900);
+  text-decoration: none;
+}
+
+/* ---------- Utilidades ---------- */
+.mc-fade-in {
+  animation: mcFadeIn 0.25s ease both;
+}
+@keyframes mcFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-item-card,
+  .mc-fade-in {
+    animation: none !important;
+    transition: none !important;
+  }
+}

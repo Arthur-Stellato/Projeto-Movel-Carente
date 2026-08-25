@@ -1,0 +1,473 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum TipoUsuario {
+  usuario
+  admin
+}
+
+enum TipoToken {
+  recuperacao_senha
+  verificacao_email
+}
+
+enum StatusItem {
+  disponivel
+  reservado
+  doado
+  cancelado
+}
+
+enum StatusSolicitacao {
+  pendente
+  aceita
+  recusada
+  cancelada
+}
+
+enum CondicaoItem {
+  novo
+  seminovo
+  usado
+}
+
+enum TipoNotificacao {
+  nova_solicitacao
+  solicitacao_aceita
+  solicitacao_recusada
+  item_denunciado
+  sistema
+}
+
+enum TipoDenuncia {
+  item
+  usuario
+}
+
+enum StatusDenuncia {
+  pendente
+  analisada
+  procedente
+  improcedente
+}
+
+enum UF {
+  AC
+  AL
+  AP
+  AM
+  BA
+  CE
+  DF
+  ES
+  GO
+  MA
+  MT
+  MS
+  MG
+  PA
+  PB
+  PR
+  PE
+  PI
+  RJ
+  RN
+  RS
+  RO
+  RR
+  SC
+  SP
+  SE
+  TO
+}
+
+// ============================================================
+// USUÁRIO / AUTENTICAÇÃO
+// ============================================================
+
+model Usuario {
+  id                    String    @id @default(uuid()) @db.Uuid
+  email                 String    @unique @db.VarChar(255)
+  cpf                   String    @unique @db.VarChar(11)
+  senhaHash             String?   @map("senha_hash") @db.VarChar(255)
+  primeiroNome          String    @map("primeiro_nome") @db.VarChar(100)
+  ultimoNome            String    @map("ultimo_nome") @db.VarChar(100)
+  telefone              String?   @db.VarChar(20)
+  tipo                  TipoUsuario @default(usuario)
+  emailVerificado       Boolean   @default(false) @map("email_verificado")
+  ativo                 Boolean   @default(true)
+  tentativasLoginFalhas Int       @default(0) @map("tentativas_login_falhas")
+  bloqueadoAte          DateTime? @map("bloqueado_ate")
+  termosAceitosEm       DateTime? @map("termos_aceitos_em")
+  criadoEm              DateTime  @default(now()) @map("criado_em")
+  atualizadoEm          DateTime  @default(now()) @updatedAt @map("atualizado_em")
+  deletadoEm            DateTime? @map("deletado_em")
+
+  enderecos           Endereco[]
+  tokens              TokenUsuario[]
+  refreshTokens       RefreshToken[]
+  contasOauth         ContaOauth[]
+  logsAuditoria       LogAuditoria[]    @relation("AdminLogs")
+  itensDoacao         ItemDoacao[]      @relation("DoadorItens")
+  solicitacoes        SolicitacaoItem[] @relation("SolicitanteSolicitacoes")
+  notificacoes        Notificacao[]
+  denunciasFeitas     Denuncia[]        @relation("Denunciante")
+  denunciasRecebidas  Denuncia[]        @relation("UsuarioDenunciado")
+  denunciasAnalisadas Denuncia[]        @relation("AdminAnalise")
+  favoritos           Favorito[]
+  avaliacoesFeitas    Avaliacao[]       @relation("AvaliacoesFeitas")
+  avaliacoesRecebidas Avaliacao[]       @relation("AvaliacoesRecebidas")
+
+  @@map("usuarios")
+}
+
+model Endereco {
+  id          String   @id @default(uuid()) @db.Uuid
+  usuarioId   String   @map("usuario_id") @db.Uuid
+  tipo        String   @default("residencial") @db.VarChar(20)
+  cep         String   @db.VarChar(8)
+  logradouro  String   @db.VarChar(255)
+  numero      String?  @db.VarChar(20)
+  complemento String?  @db.VarChar(100)
+  bairro      String?  @db.VarChar(100)
+  cidade      String   @db.VarChar(100)
+  estado      UF
+  pais        String   @default("Brasil") @db.VarChar(50)
+  principal   Boolean  @default(false)
+  // Resolvidas automaticamente a partir do CEP via CepCache/BrasilAPI (ver
+  // src/services/cep.service.js) — nunca aceitas diretamente do cliente,
+  // pra evitar coordenada forjada. Ficam null quando a consulta de CEP falha
+  // ou não retorna geolocalização pra aquele CEP (cobertura não é 100%).
+  latitude    Float?
+  longitude   Float?
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  usuario Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  itens   ItemDoacao[]
+
+  @@map("enderecos")
+}
+
+model TokenUsuario {
+  id        String    @id @default(uuid()) @db.Uuid
+  usuarioId String    @map("usuario_id") @db.Uuid
+  tipo      TipoToken
+  token     String    @unique @db.VarChar(255)
+  expiraEm  DateTime  @map("expira_em")
+  usado     Boolean   @default(false)
+  criadoEm  DateTime  @default(now()) @map("criado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("tokens_usuario")
+}
+
+// ============================================================
+// OUTBOX PATTERN
+// ============================================================
+
+enum StatusEventoOutbox {
+  pendente
+  processado
+  falhou
+}
+
+// Trabalho assíncrono (hoje só emails) fica registrado aqui — nunca é
+// enfileirado direto no BullMQ dentro do ciclo de um request HTTP. Isso
+// desacopla a resposta da API da disponibilidade do Redis: gravar uma linha
+// aqui é uma escrita comum no Postgres, sempre rápida, nunca trava esperando
+// o Redis voltar. Um processo separado (src/workers/outbox.worker.js) lê os
+// eventos pendentes e só ENTÃO tenta enfileirar no BullMQ de verdade — se o
+// Redis estiver fora do ar nesse momento, o evento simplesmente continua
+// pendente e é tentado de novo no próximo ciclo.
+model EventoOutbox {
+  id           String              @id @default(uuid()) @db.Uuid
+  tipo         String              @db.VarChar(50) // 'email' por enquanto; aberto pra outros tipos de job no futuro
+  payload      Json
+  status       StatusEventoOutbox  @default(pendente)
+  tentativas   Int                 @default(0)
+  ultimoErro   String?             @db.VarChar(1000)
+  criadoEm     DateTime            @default(now()) @map("criado_em")
+  processadoEm DateTime?           @map("processado_em")
+
+  @@index([status, criadoEm])
+  @@map("eventos_outbox")
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  usuarioId  String   @map("usuario_id") @db.Uuid
+  token      String   @unique @db.VarChar(500)
+  userAgent  String?  @map("user_agent") @db.VarChar(255)
+  ipOrigem   String?  @map("ip_origem") @db.VarChar(45)
+  expiraEm   DateTime @map("expira_em")
+  revogado   Boolean  @default(false)
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+/// Preparado para o futuro (login social) — não implementar agora
+model ContaOauth {
+  id         String   @id @default(uuid()) @db.Uuid
+  usuarioId  String   @map("usuario_id") @db.Uuid
+  provedor   String   @db.VarChar(50)
+  provedorId String   @map("provedor_id") @db.VarChar(255)
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([provedor, provedorId])
+  @@map("contas_oauth")
+}
+
+model LogAuditoria {
+  id              String   @id @default(uuid()) @db.Uuid
+  adminId         String   @map("admin_id") @db.Uuid
+  acao            String   @db.VarChar(100)
+  entidadeAfetada String?  @map("entidade_afetada") @db.VarChar(100)
+  entidadeId      String?  @map("entidade_id") @db.Uuid
+  detalhes        Json?
+  ipOrigem        String?  @map("ip_origem") @db.VarChar(45)
+  criadoEm        DateTime @default(now()) @map("criado_em")
+
+  admin Usuario @relation("AdminLogs", fields: [adminId], references: [id])
+
+  @@map("logs_auditoria")
+}
+
+// ============================================================
+// ITENS DE DOAÇÃO
+// ============================================================
+
+model Categoria {
+  id    String  @id @default(uuid()) @db.Uuid
+  nome  String  @unique @db.VarChar(100)
+  slug  String  @unique @db.VarChar(100)
+  icone String? @db.VarChar(100)
+  ativo Boolean @default(true)
+
+  itens ItemDoacao[]
+
+  @@map("categorias")
+}
+
+model ItemDoacao {
+  id           String       @id @default(uuid()) @db.Uuid
+  doadorId     String       @map("doador_id") @db.Uuid
+  categoriaId  String       @map("categoria_id") @db.Uuid
+  titulo       String       @db.VarChar(150)
+  descricao    String
+  condicao     CondicaoItem @default(usado)
+  status       StatusItem   @default(disponivel)
+  cidade       String       @db.VarChar(100)
+  estado       UF
+  /// Endereço completo só é liberado após solicitação aceita (regra de aplicação)
+  enderecoId   String?      @map("endereco_id") @db.Uuid
+  // Denormalizadas do endereco vinculado (se houver) ou do centroide da
+  // cidade/estado como fallback (ver src/services/cep.service.js e
+  // src/services/item.service.js) — existem SÓ pra alimentar a busca por raio
+  // em src/routes/item.routes.js (GET /itens?lat=&lng=&raioKm=). Ficam null
+  // quando não há endereço vinculado nem centroide cadastrado pra essa
+  // cidade/estado — o item continua listável normalmente, só fica de fora da
+  // busca por raio até ganhar uma coordenada.
+  latitude     Float?
+  longitude    Float?
+  criadoEm     DateTime     @default(now()) @map("criado_em")
+  atualizadoEm DateTime     @default(now()) @updatedAt @map("atualizado_em")
+  deletadoEm   DateTime?    @map("deletado_em")
+
+  doador       Usuario           @relation("DoadorItens", fields: [doadorId], references: [id], onDelete: Cascade)
+  categoria    Categoria         @relation(fields: [categoriaId], references: [id])
+  endereco     Endereco?         @relation(fields: [enderecoId], references: [id])
+  imagens      ImagemItem[]
+  solicitacoes SolicitacaoItem[]
+  denuncias    Denuncia[]
+  favoritos    Favorito[]
+
+  @@map("itens_doacao")
+}
+
+model ImagemItem {
+  id       String   @id @default(uuid()) @db.Uuid
+  itemId   String   @map("item_id") @db.Uuid
+  url      String   @db.VarChar(500)
+  ordem    Int      @default(0)
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  item ItemDoacao @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("imagens_item")
+}
+
+model SolicitacaoItem {
+  id            String            @id @default(uuid()) @db.Uuid
+  itemId        String            @map("item_id") @db.Uuid
+  solicitanteId String            @map("solicitante_id") @db.Uuid
+  mensagem      String?
+  status        StatusSolicitacao @default(pendente)
+  respondidoEm  DateTime?         @map("respondido_em")
+  criadoEm      DateTime          @default(now()) @map("criado_em")
+
+  item        ItemDoacao @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  solicitante Usuario    @relation("SolicitanteSolicitacoes", fields: [solicitanteId], references: [id], onDelete: Cascade)
+  avaliacoes  Avaliacao[]
+
+  @@unique([itemId, solicitanteId])
+  @@map("solicitacoes_item")
+}
+
+// ============================================================
+// AVALIAÇÕES
+// ============================================================
+
+// Avaliação bidirecional e "double-blind": doador e solicitante podem avaliar
+// um ao outro depois que a doação é concluída, mas a nota de cada lado só fica
+// visível pro outro quando as duas já foram enviadas, ou depois de
+// JANELA_REVELACAO_DIAS (ver src/services/avaliacao.service.js) — o que vier
+// primeiro. Evita retaliação/nota inflada por quem avalia depois de já ver a
+// nota do outro lado.
+model Avaliacao {
+  id            String   @id @default(uuid()) @db.Uuid
+  solicitacaoId String   @map("solicitacao_id") @db.Uuid
+  avaliadorId   String   @map("avaliador_id") @db.Uuid
+  avaliadoId    String   @map("avaliado_id") @db.Uuid
+  nota          Int
+  comentario    String?  @db.VarChar(1000)
+  criadoEm      DateTime @default(now()) @map("criado_em")
+
+  solicitacao SolicitacaoItem @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  avaliador   Usuario         @relation("AvaliacoesFeitas", fields: [avaliadorId], references: [id], onDelete: Cascade)
+  avaliado    Usuario         @relation("AvaliacoesRecebidas", fields: [avaliadoId], references: [id], onDelete: Cascade)
+
+  // Uma avaliação por direção, por solicitação — impede avaliar duas vezes a
+  // mesma doação. Prisma gera a chave composta como solicitacaoId_avaliadorId.
+  //
+  // NOTA: o CHECK "nota entre 1 e 5" não é suportado nativamente pelo Prisma
+  // Schema (mesma situação do CHECK item XOR usuário em Denuncia, acima). O
+  // Joi na rota já impede isso na aplicação; o CHECK no banco precisa ser
+  // adicionado manualmente na migration gerada (ver instruções no final da resposta).
+  @@unique([solicitacaoId, avaliadorId])
+  @@map("avaliacoes")
+}
+
+// ============================================================
+// NOTIFICAÇÕES
+// ============================================================
+
+model Notificacao {
+  id           String          @id @default(uuid()) @db.Uuid
+  usuarioId    String          @map("usuario_id") @db.Uuid
+  tipo         TipoNotificacao
+  titulo       String          @db.VarChar(150)
+  mensagem     String
+  /// Id do item ou solicitação relacionada — controlado na aplicação, sem FK fixa
+  referenciaId String?         @map("referencia_id") @db.Uuid
+  lida         Boolean         @default(false)
+  criadoEm     DateTime        @default(now()) @map("criado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("notificacoes")
+}
+
+// ============================================================
+// DENÚNCIAS / MODERAÇÃO
+// ============================================================
+
+model Denuncia {
+  id                  String         @id @default(uuid()) @db.Uuid
+  denuncianteId       String         @map("denunciante_id") @db.Uuid
+  tipo                TipoDenuncia
+  itemId              String?        @map("item_id") @db.Uuid
+  usuarioDenunciadoId String?        @map("usuario_denunciado_id") @db.Uuid
+  motivo              String         @db.VarChar(100)
+  descricao           String?
+  status              StatusDenuncia @default(pendente)
+  analisadoPor        String?        @map("analisado_por") @db.Uuid
+  analisadoEm         DateTime?      @map("analisado_em")
+  criadoEm            DateTime       @default(now()) @map("criado_em")
+
+  denunciante       Usuario     @relation("Denunciante", fields: [denuncianteId], references: [id], onDelete: Cascade)
+  usuarioDenunciado Usuario?    @relation("UsuarioDenunciado", fields: [usuarioDenunciadoId], references: [id], onDelete: Cascade)
+  admin             Usuario?    @relation("AdminAnalise", fields: [analisadoPor], references: [id])
+  item              ItemDoacao? @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  // NOTA: o CHECK que garante "tipo item XOR tipo usuário" não é suportado
+  // nativamente pelo Prisma Schema. Ele precisa ser adicionado manualmente
+  // na migration gerada (ver instruções no final da resposta).
+
+  @@map("denuncias")
+}
+
+// ============================================================
+// FAVORITOS
+// ============================================================
+
+model Favorito {
+  id        String   @id @default(uuid()) @db.Uuid
+  usuarioId String   @map("usuario_id") @db.Uuid
+  itemId    String   @map("item_id") @db.Uuid
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  usuario Usuario    @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  item    ItemDoacao @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, itemId])
+  @@map("favoritos")
+}
+
+// ============================================================
+// GEOLOCALIZAÇÃO — CACHE DE CEP E BUSCA POR RAIO
+// ============================================================
+
+// Camada 3 do lookup de CEP (ver src/services/cep.service.js): guarda o
+// resultado já resolvido pela BrasilAPI, pra próximas consultas do mesmo CEP
+// não dependerem de um serviço externo. `latitude`/`longitude` ficam null
+// quando a BrasilAPI não retornou geolocalização pra esse CEP (cobertura não
+// é garantida pra todo CEP).
+model CepCache {
+  cep          String   @id @db.VarChar(8)
+  logradouro   String?  @db.VarChar(255)
+  bairro       String?  @db.VarChar(100)
+  cidade       String   @db.VarChar(100)
+  estado       String   @db.VarChar(2)
+  latitude     Float?
+  longitude    Float?
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  @@map("cep_cache")
+}
+
+// Coordenada aproximada (centro) de uma cidade — usada como fallback de
+// localização em dois casos: (1) item de doação sem endereço vinculado
+// (só tem cidade/estado em texto livre), e (2) visitante não-logado que
+// recusa o GPS e escolhe a cidade manualmente pra buscar por raio.
+//
+// Vem com um punhado de capitais como ponto de partida (ver
+// prisma/seed-cidades-centroide.js) — NÃO é uma cobertura completa dos
+// ~5.570 municípios brasileiros. Cidade sem linha aqui e sem item com
+// endereço vinculado simplesmente fica de fora da busca por raio (mas
+// continua aparecendo normalmente no filtro por cidade/estado).
+model CidadeCentroide {
+  id        String @id @default(uuid()) @db.Uuid
+  cidade    String @db.VarChar(100)
+  estado    String @db.VarChar(2)
+  latitude  Float
+  longitude Float
+
+  @@unique([cidade, estado])
+  @@map("cidades_centroide")
+}
