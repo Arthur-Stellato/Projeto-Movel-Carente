@@ -50,7 +50,7 @@ app.use(pinoHttp({ logger }));
 // sempre devolveria o MESMO valor pra qualquer origem, o que faria o navegador
 // bloquear qualquer origem diferente da configurada (foi exatamente esse o bug:
 // CORS_ORIGIN fixo em localhost:3000 bloqueava o frontend rodando em localhost:5173).
-const origensPermitidas = (process.env.CORS_ORIGIN || 'http://localhost:3000,https://pills-california-needs-seems.trycloudflare.com')
+const origensPermitidas = (process.env.CORS_ORIGIN)
   .split(',')
   .map((origem) => origem.trim())
   .filter(Boolean);

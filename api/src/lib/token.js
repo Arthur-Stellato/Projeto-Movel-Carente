@@ -15,8 +15,12 @@ function gerarRefreshTokenOpaco() {
 }
 
 function gerarTokenAleatorio() {
-  // Usado para recuperação de senha / verificação de email
-  return crypto.randomBytes(32).toString('hex');
+  // Gera um número inteiro seguro entre 0 e 999999
+  const max = 1000000;
+  const randomNumber = crypto.randomInt(0, max);
+
+  // Converte para string e preenche com zeros à esquerda se necessário (ex: 5 vira "000005")
+  return randomNumber.toString().padStart(6, '0');
 }
 
 function hashearToken(token) {

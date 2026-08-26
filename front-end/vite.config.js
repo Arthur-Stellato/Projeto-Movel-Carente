@@ -34,7 +34,7 @@ export default defineConfig({
     // VITE_API_URL apontar direto pro backend, o axios nem chega a usar esse
     // proxy, e este bloco fica sem efeito.
     proxy: Object.fromEntries(
-      PREFIXOS_API.map((prefixo) => [prefixo, { target: 'http://localhost:3000', changeOrigin: true }])
+      PREFIXOS_API.map((prefixo) => [prefixo, { target: 'http://localhost:3000,https://cancelled-flooring-publication-soma.trycloudflare.com', changeOrigin: true }])
     ),
   },
 })
