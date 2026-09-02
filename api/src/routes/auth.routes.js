@@ -19,14 +19,16 @@ const router = express.Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email, cpf, senha, primeiroNome, ultimoNome]
+ *             required: [email, senha, primeiroNome, ultimoNome]
  *             properties:
  *               email: { type: string, format: email }
- *               cpf: { type: string, example: "12345678900", description: "Somente dígitos" }
+ *               cpf: { type: string, nullable: true, example: "12345678900", description: "CPF ou CNPJ é obrigatório; envie somente um deles" }
+ *               cnpj: { type: string, nullable: true, example: "11222333000181", description: "CPF ou CNPJ é obrigatório; envie somente um deles" }
  *               senha: { type: string, format: password, minLength: 8 }
  *               primeiroNome: { type: string }
  *               ultimoNome: { type: string }
  *               telefone: { type: string }
+ *               genero: { type: string, enum: [masculino, feminino, prefiro_nao_dizer, outro], description: "Opcional — sem informar, fica como prefiro_nao_dizer" }
  *     responses:
  *       201:
  *         description: Usuário criado com sucesso
@@ -36,7 +38,7 @@ const router = express.Router();
  *               type: object
  *               properties: { usuario: { $ref: '#/components/schemas/Usuario' } }
  *       400: { $ref: '#/components/responses/DadosInvalidos' }
- *       409: { description: "Email ou CPF já cadastrado", content: { application/json: { schema: { $ref: '#/components/schemas/Erro' } } } }
+ *       409: { description: "Email ou documento já cadastrado", content: { application/json: { schema: { $ref: '#/components/schemas/Erro' } } } }
  */
 router.post('/registro', limitadorAuth, validar(usuarioValidation.registro), authController.registrar);
 

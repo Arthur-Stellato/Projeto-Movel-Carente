@@ -1,4 +1,4 @@
-const { normalizarPaginacao, TAMANHO_MAXIMO } = require('../../src/lib/paginacao');
+const { normalizarPaginacao, normalizarLimite, TAMANHO_MAXIMO } = require('../../src/lib/paginacao');
 
 describe('normalizarPaginacao', () => {
   test('usa os valores informados quando são números válidos', () => {
@@ -45,5 +45,31 @@ describe('normalizarPaginacao', () => {
   test('aceita strings numéricas vindas da query string', () => {
     const resultado = normalizarPaginacao('2', '5', 20);
     expect(resultado).toEqual({ pagina: 2, tamanho: 5, skip: 5 });
+  });
+});
+
+// Fase 9: extraído de normalizarPaginacao pra ser reaproveitado também pela
+// paginação por cursor do chat (que não tem conceito de "página").
+describe('normalizarLimite', () => {
+  test('usa o valor informado quando é um número válido', () => {
+    expect(normalizarLimite(10, 30)).toBe(10);
+  });
+
+  test('cai no padrão quando não informado', () => {
+    expect(normalizarLimite(undefined, 30)).toBe(30);
+  });
+
+  test('aplica o teto máximo, mesmo com um valor absurdo', () => {
+    expect(normalizarLimite(999999, 30)).toBe(TAMANHO_MAXIMO);
+  });
+
+  test('protege contra zero, negativo e valores não numéricos', () => {
+    expect(normalizarLimite(0, 30)).toBe(30); // 0 é falsy, cai no padrão
+    expect(normalizarLimite(-5, 30)).toBe(1);
+    expect(normalizarLimite('abc', 30)).toBe(30);
+  });
+
+  test('aceita string numérica vinda da query string', () => {
+    expect(normalizarLimite('15', 30)).toBe(15);
   });
 });

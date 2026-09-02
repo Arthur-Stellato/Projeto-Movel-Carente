@@ -1,4 +1,4 @@
-const { validarCpf, validarCep, validarUuid, validarEmail, normalizarEmail, ehEmailDescartavel, validarTelefone, UFS_VALIDAS } = require('../../src/lib/validadores');
+const { validarCpf, validarCnpj, validarCep, validarUuid, validarEmail, normalizarEmail, ehEmailDescartavel, validarTelefone, UFS_VALIDAS } = require('../../src/lib/validadores');
 
 describe('validarCpf', () => {
   test('aceita um CPF real com dígitos verificadores corretos', () => {
@@ -199,5 +199,17 @@ describe('validarTelefone', () => {
 
   test('letras/lixo não lançam exceção', () => {
     expect(validarTelefone('abc-def-ghij')).toBeNull();
+  });
+});
+
+describe('validarCnpj', () => {
+  test('aceita CNPJ com dígitos verificadores corretos, com ou sem formatação', () => {
+    expect(validarCnpj('11222333000181')).toBe(true);
+    expect(validarCnpj('11.222.333/0001-81')).toBe(true);
+  });
+
+  test('rejeita CNPJ com dígito verificador incorreto ou sequência repetida', () => {
+    expect(validarCnpj('11222333000180')).toBe(false);
+    expect(validarCnpj('00000000000000')).toBe(false);
   });
 });

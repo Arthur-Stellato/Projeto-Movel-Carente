@@ -10,8 +10,9 @@ import AuthLayout from './AuthLayout';
 import VerificarEmailForm from '../../components/auth/VerificarEmailForm';
 import { useAuth } from '../../context/AuthContext';
 import { mensagemDeErro } from '../../services/api';
+import { GENEROS } from '../../constants';
 
-const VAZIO = { primeiroNome: '', ultimoNome: '', email: '', cpf: '', telefone: '', senha: '' };
+const VAZIO = { primeiroNome: '', ultimoNome: '', email: '', cpf: '', telefone: '', genero: 'prefiro_nao_dizer', senha: '' };
 
 export default function Registro() {
   const { registrar, login } = useAuth();
@@ -98,6 +99,16 @@ export default function Registro() {
             <Form.Control value={form.telefone} placeholder="(00) 00000-0000" onChange={(e) => atualizarCampo('telefone', e.target.value)} />
           </Col>
         </Row>
+        <Form.Group className="mb-3">
+          <Form.Label>Gênero</Form.Label>
+          <Form.Select value={form.genero} onChange={(e) => atualizarCampo('genero', e.target.value)}>
+            {GENEROS.map((g) => (
+              <option key={g.valor} value={g.valor}>
+                {g.rotulo}
+              </option>
+            ))}
+          </Form.Select>
+        </Form.Group>
         <Form.Group className="mb-3">
           <Form.Label>Senha</Form.Label>
           <Form.Control type="password" value={form.senha} onChange={(e) => atualizarCampo('senha', e.target.value)} required />

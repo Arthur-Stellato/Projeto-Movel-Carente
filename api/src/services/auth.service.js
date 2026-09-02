@@ -4,6 +4,7 @@ const { gerarAccessToken, gerarRefreshTokenOpaco, gerarTokenAleatorio, hashearTo
 const { registrarEventoOutbox } = require('../lib/outbox');
 const { sanitizarUsuario } = require('../lib/sanitizar');
 const { normalizarEmail } = require('../lib/validadores');
+const { origensPermitidas } = require('../lib/origensPermitidas');
 
 const SALT_ROUNDS = 10;
 const MAX_TENTATIVAS_LOGIN = 5;
@@ -15,18 +16,44 @@ const VERIFICACAO_EMAIL_HORAS = 24;
 const { ErroDominio } = require('../lib/erros');
 class ErroAutenticacao extends ErroDominio {}
 
+// Hash fixo, sem relação com nenhuma conta real — usado só pra igualar o tempo
+// de resposta entre "email não existe" e "email existe, senha errada". Sem
+// isso, a ausência de usuário pularia o bcrypt.compare (lento de propósito) e
+// responderia visivelmente mais rápido, o que sozinho já entregaria a
+// diferença por timing.
+const HASH_DUMMY_PARA_TIMING = bcrypt.hashSync('nenhuma-conta-usa-esta-senha', SALT_ROUNDS);
+
 // Formato de email/senha já vem validado pelo middleware Joi (rota /auth/login) —
 // aqui só cabe a lógica de negócio (conta existe, está ativa, senha confere).
+//
+// ORDEM IMPORTA: a senha é conferida ANTES de qualquer checagem de estado da
+// conta (ativo, email verificado, bloqueio). Se fosse ao contrário, mandar
+// *qualquer senha* pra um email cadastrado já revelaria "essa conta existe e
+// está desativada/não verificada/bloqueada" sem nunca precisar acertar a
+// senha de verdade — um jeito de enumerar contas cadastradas mesmo com a
+// mensagem de erro genérica. Só depois de provar que conhece a senha é que
+// faz sentido (e é seguro) contar por que o login não pode prosseguir.
 async function login({ email, senha, userAgent, ipOrigem }) {
   const usuario = await prisma.usuario.findUnique({ where: { email: normalizarEmail(email) } });
 
+  const senhaValida = await bcrypt.compare(senha, usuario?.senhaHash || HASH_DUMMY_PARA_TIMING);
+
   // Mensagem genérica propositalmente, para não revelar se o email existe
-  if (!usuario || !usuario.senhaHash) {
+  if (!usuario || !usuario.senhaHash || !senhaValida) {
+    if (usuario) await registrarTentativaFalha(usuario);
     throw new ErroAutenticacao('Email ou senha inválidos', 401);
   }
 
   if (!usuario.ativo) {
     throw new ErroAutenticacao('Conta desativada. Entre em contato com o suporte', 403);
+  }
+
+  if (!usuario.emailVerificado) {
+    throw new ErroAutenticacao(
+      'Confirme seu email antes de entrar. Verifique sua caixa de entrada ou peça um novo link de verificação.',
+      403,
+      'EMAIL_NAO_VERIFICADO'
+    );
   }
 
   if (usuario.bloqueadoAte && usuario.bloqueadoAte > new Date()) {
@@ -35,13 +62,6 @@ async function login({ email, senha, userAgent, ipOrigem }) {
       `Conta temporariamente bloqueada. Tente novamente em ${minutosRestantes} minuto(s)`,
       403
     );
-  }
-
-  const senhaValida = await bcrypt.compare(senha, usuario.senhaHash);
-
-  if (!senhaValida) {
-    await registrarTentativaFalha(usuario);
-    throw new ErroAutenticacao('Email ou senha inválidos', 401);
   }
 
   // Login bem-sucedido: zera tentativas e bloqueio
@@ -178,9 +198,12 @@ async function solicitarRecuperacaoSenha(email) {
     }),
   ]);
 
-  // Em desenvolvimento, também devolvemos o token na resposta — facilita testar
-  // sem precisar checar o email (que, sem SMTP configurado, só aparece no console do worker).
-  if (process.env.NODE_ENV !== 'production') {
+  // Devolvido na resposta só quando alguém liga EXPOR_TOKENS_DEV=true de propósito
+  // (nunca por padrão, e nunca só por causa de NODE_ENV) — evita que esquecer de
+  // setar NODE_ENV=production num deploy de verdade vire, sozinho, um jeito de
+  // qualquer pessoa pedir redefinição de senha de um email que ela souber e ler
+  // o token direto na resposta, sem precisar acessar a caixa de entrada de ninguém.
+  if (process.env.EXPOR_TOKENS_DEV === 'true') {
     return { token };
   }
 }
@@ -226,6 +249,9 @@ async function enviarVerificacaoEmail(usuario) {
   const tokenHash = hashearToken(token);
   const expiraEm = new Date(Date.now() + VERIFICACAO_EMAIL_HORAS * 60 * 60 * 1000);
 
+  const baseUrl = (process.env.FRONTEND_URL || origensPermitidas()[0] || 'http://localhost:5173').replace(/\/+$/, '');
+  const linkVerificacao = `${baseUrl}/verificar-email?token=${token}&email=${encodeURIComponent(usuario.email)}`;
+
   // Mesma lógica da recuperação de senha: uma transação só, e o email vira
   // um evento de outbox em vez de enfileirar direto no BullMQ.
   await prisma.$transaction([
@@ -240,16 +266,36 @@ async function enviarVerificacaoEmail(usuario) {
       para: usuario.email,
       assunto: 'Confirme seu email — MóvelCarente',
       html: `
-        <p>Olá, ${usuario.primeiroNome}!</p>
-        <p>Confirme seu email usando o token abaixo (válido por ${VERIFICACAO_EMAIL_HORAS} horas):</p>
-        <p><strong>${token}</strong></p>
-        <p>Se você não criou uma conta no MóvelCarente, pode ignorar este email com segurança.</p>
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #24302b; line-height: 1.6;">
+          <h2 style="color: #1f4d3d; margin-bottom: 16px;">Confirme seu email</h2>
+          <p>Olá, <strong>${usuario.primeiroNome}</strong>!</p>
+          <p>Obrigado por se cadastrar no MóvelCarente. Para ativar sua conta, basta clicar no botão abaixo:</p>
+          <div style="margin: 28px 0; text-align: center;">
+            <a href="${linkVerificacao}" style="display: inline-block; background-color: #1f4d3d; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+              Confirmar meu email
+            </a>
+          </div>
+          <p>Ou, se preferir, use o código de verificação abaixo na tela de confirmação:</p>
+          <div style="background-color: #f7f4ee; border: 1px solid #e3ddc9; padding: 14px; text-align: center; border-radius: 6px; font-size: 24px; letter-spacing: 4px; font-weight: bold; color: #1f4d3d; margin: 16px 0;">
+            ${token}
+          </div>
+          <p style="margin-top: 20px; font-size: 13px; color: #5b6b62;">
+            Este link e código são válidos por ${VERIFICACAO_EMAIL_HORAS} horas.<br>
+            Se o botão acima não funcionar, copie e cole o link a seguir no seu navegador:<br>
+            <a href="${linkVerificacao}" style="color: #1f4d3d; word-break: break-all;">${linkVerificacao}</a>
+          </p>
+          <hr style="border: none; border-top: 1px solid #e3ddc9; margin: 24px 0;" />
+          <p style="font-size: 12px; color: #8a988e; margin-bottom: 0;">
+            Se você não criou uma conta no MóvelCarente, pode ignorar este email com segurança.
+          </p>
+        </div>
       `,
     }),
   ]);
 
-  // Em desenvolvimento, devolvemos o token também na resposta (mesma lógica da recuperação de senha)
-  if (process.env.NODE_ENV !== 'production') {
+  // Mesma lógica e o mesmo motivo de segurança da recuperação de senha acima:
+  // só sai na resposta com o opt-in explícito de EXPOR_TOKENS_DEV=true.
+  if (process.env.EXPOR_TOKENS_DEV === 'true') {
     return { token };
   }
 }

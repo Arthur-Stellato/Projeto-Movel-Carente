@@ -52,11 +52,29 @@ describe('GET /categorias/:id', () => {
   });
 
   test('id válido e existente devolve 200 com a categoria', async () => {
-    prisma.categoria.findUnique.mockResolvedValue({ id: '550e8400-e29b-41d4-a716-446655440000', nome: 'Móveis' });
+    prisma.categoria.findUnique.mockResolvedValue({ id: '550e8400-e29b-41d4-a716-446655440000', nome: 'Móveis', ativo: true });
     const res = await request(app).get('/categorias/550e8400-e29b-41d4-a716-446655440000');
 
     expect(res.status).toBe(200);
     expect(res.body.categoria.nome).toBe('Móveis');
+  });
+
+  test('categoria inativa devolve 404 pra quem não é admin (visitante ou usuário comum)', async () => {
+    prisma.categoria.findUnique.mockResolvedValue({ id: '550e8400-e29b-41d4-a716-446655440000', nome: 'Antiga', ativo: false });
+    const res = await request(app).get('/categorias/550e8400-e29b-41d4-a716-446655440000');
+
+    expect(res.status).toBe(404);
+  });
+
+  test('categoria inativa devolve 200 pra admin autenticado', async () => {
+    prisma.categoria.findUnique.mockResolvedValue({ id: '550e8400-e29b-41d4-a716-446655440000', nome: 'Antiga', ativo: false });
+    const tokenAdmin = gerarToken({ tipo: 'admin' });
+
+    const res = await request(app)
+      .get('/categorias/550e8400-e29b-41d4-a716-446655440000')
+      .set('Authorization', `Bearer ${tokenAdmin}`);
+
+    expect(res.status).toBe(200);
   });
 });
 

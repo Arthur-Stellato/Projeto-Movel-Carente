@@ -14,6 +14,8 @@ import Dashboard from './pages/Dashboard';
 import MeusItens from './pages/itens/MeusItens';
 import SolicitacoesRecebidas from './pages/solicitacoes/SolicitacoesRecebidas';
 import MinhasSolicitacoes from './pages/solicitacoes/MinhasSolicitacoes';
+import Conversas from './pages/chat/Conversas';
+import Chat from './pages/chat/Chat';
 import Favoritos from './pages/Favoritos';
 import Notificacoes from './pages/Notificacoes';
 import Perfil from './pages/perfil/Perfil';
@@ -46,6 +48,8 @@ export default function App() {
           <Route path="/painel/meus-itens" element={<MeusItens />} />
           <Route path="/painel/itens/:itemId/solicitacoes" element={<SolicitacoesRecebidas />} />
           <Route path="/painel/solicitacoes" element={<MinhasSolicitacoes />} />
+          <Route path="/painel/conversas" element={<Conversas />} />
+          <Route path="/painel/chat/:solicitacaoId" element={<Chat />} />
           <Route path="/painel/favoritos" element={<Favoritos />} />
           <Route path="/painel/notificacoes" element={<Notificacoes />} />
           <Route path="/painel/denuncias" element={<MinhasDenuncias />} />

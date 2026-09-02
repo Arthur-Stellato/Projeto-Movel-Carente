@@ -23,8 +23,19 @@ function gerarTokenAleatorio() {
   return randomNumber.toString().padStart(6, '0');
 }
 
+function verificarAccessToken(token) {
+  const payload = jwt.verify(token, process.env.JWT_SECRET);
+  return { id: payload.sub, tipo: payload.tipo };
+}
+
 function hashearToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-module.exports = { gerarAccessToken, gerarRefreshTokenOpaco, gerarTokenAleatorio, hashearToken };
+module.exports = {
+  gerarAccessToken,
+  verificarAccessToken,
+  gerarRefreshTokenOpaco,
+  gerarTokenAleatorio,
+  hashearToken,
+};

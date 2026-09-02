@@ -62,6 +62,34 @@ describe('listarPorItem', () => {
 
     await expect(solicitacaoService.listarPorItem('item-1', 'admin-1', true)).resolves.toBeDefined();
   });
+
+  test('inclui mensagensNaoLidas por solicitação (fase 8)', async () => {
+    prisma.itemDoacao.findFirst.mockResolvedValue({ id: 'item-1', doadorId: 'doador-1' });
+    prisma.$transaction.mockResolvedValue([
+      [{ id: 'sol-1' }, { id: 'sol-2' }],
+      2,
+    ]);
+    prisma.mensagem.groupBy.mockResolvedValue([
+      { solicitacaoId: 'sol-1', _count: { _all: 3 } },
+    ]);
+
+    const resultado = await solicitacaoService.listarPorItem('item-1', 'doador-1', false);
+
+    expect(resultado.solicitacoes).toEqual([
+      expect.objectContaining({ id: 'sol-1', mensagensNaoLidas: 3 }),
+      expect.objectContaining({ id: 'sol-2', mensagensNaoLidas: 0 }),
+    ]);
+  });
+
+  test('visita de admin não conta mensagensNaoLidas (sempre 0, sem nem consultar)', async () => {
+    prisma.itemDoacao.findFirst.mockResolvedValue({ id: 'item-1', doadorId: 'doador-1' });
+    prisma.$transaction.mockResolvedValue([[{ id: 'sol-1' }], 1]);
+
+    const resultado = await solicitacaoService.listarPorItem('item-1', 'admin-1', true);
+
+    expect(resultado.solicitacoes[0].mensagensNaoLidas).toBe(0);
+    expect(prisma.mensagem.groupBy).not.toHaveBeenCalled();
+  });
 });
 
 describe('aceitar', () => {
@@ -193,5 +221,42 @@ describe('concluir', () => {
       where: { id: 'item-1' },
       data: { status: 'doado' },
     });
+  });
+});
+
+describe('minhasSolicitacoes', () => {
+  test('inclui mensagensNaoLidas por solicitação (fase 8)', async () => {
+    prisma.$transaction.mockResolvedValue([
+      [{ id: 'sol-1' }, { id: 'sol-2' }],
+      2,
+    ]);
+    prisma.mensagem.groupBy.mockResolvedValue([
+      { solicitacaoId: 'sol-2', _count: { _all: 5 } },
+    ]);
+
+    const resultado = await solicitacaoService.minhasSolicitacoes('solicitante-1');
+
+    expect(resultado.solicitacoes).toEqual([
+      expect.objectContaining({ id: 'sol-1', mensagensNaoLidas: 0 }),
+      expect.objectContaining({ id: 'sol-2', mensagensNaoLidas: 5 }),
+    ]);
+    expect(prisma.mensagem.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          solicitacaoId: { in: ['sol-1', 'sol-2'] },
+          remetenteId: { not: 'solicitante-1' },
+          lida: false,
+        }),
+      })
+    );
+  });
+
+  test('lista vazia não chega a consultar contagem de não lidas', async () => {
+    prisma.$transaction.mockResolvedValue([[], 0]);
+
+    const resultado = await solicitacaoService.minhasSolicitacoes('solicitante-1');
+
+    expect(resultado.solicitacoes).toEqual([]);
+    expect(prisma.mensagem.groupBy).not.toHaveBeenCalled();
   });
 });

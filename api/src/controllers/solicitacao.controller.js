@@ -72,4 +72,58 @@ async function concluir(req, res) {
   }
 }
 
-module.exports = { criar, listarPorItem, minhasSolicitacoes, aceitar, recusar, cancelar, concluir };
+const mensagemService = require('../services/mensagem.service');
+
+async function listarMensagens(req, res) {
+  try {
+    const ehAdmin = req.usuario.tipo === 'admin';
+    const resultado = await mensagemService.listarMensagens(req.params.id, req.usuario.id, ehAdmin, {
+      limite: req.query.limite,
+      antesDe: req.query.antesDe,
+    });
+    return res.status(200).json(resultado);
+  } catch (err) {
+    return tratarErro(err, res);
+  }
+}
+
+async function enviarMensagem(req, res) {
+  try {
+    const resultado = await mensagemService.enviarMensagem(req.params.id, req.usuario.id, req.body);
+    return res.status(201).json({ mensagem: resultado });
+  } catch (err) {
+    return tratarErro(err, res);
+  }
+}
+
+async function editarMensagem(req, res) {
+  try {
+    const resultado = await mensagemService.editarMensagem(req.params.id, req.params.mensagemId, req.usuario.id, req.body.conteudo);
+    return res.status(200).json({ mensagem: resultado });
+  } catch (err) {
+    return tratarErro(err, res);
+  }
+}
+
+async function deletarMensagem(req, res) {
+  try {
+    const resultado = await mensagemService.deletarMensagem(req.params.id, req.params.mensagemId, req.usuario.id);
+    return res.status(200).json({ mensagem: resultado });
+  } catch (err) {
+    return tratarErro(err, res);
+  }
+}
+
+module.exports = {
+  criar,
+  listarPorItem,
+  minhasSolicitacoes,
+  aceitar,
+  recusar,
+  cancelar,
+  concluir,
+  listarMensagens,
+  enviarMensagem,
+  editarMensagem,
+  deletarMensagem,
+};
