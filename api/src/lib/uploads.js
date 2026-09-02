@@ -13,6 +13,13 @@ fs.mkdirSync(DIRETORIO_UPLOADS_ITENS, { recursive: true });
 // manualmente) e não deve ter arquivo físico removido do disco.
 const PREFIXO_URL_UPLOADS_ITENS = '/uploads/itens/';
 
+// Anexos de chat não compartilham pasta com imagens de itens: têm tipos e
+// limites próprios e nunca podem ser usados como URL externa.
+const DIRETORIO_UPLOADS_MENSAGENS = path.join(__dirname, '..', '..', 'uploads', 'mensagens');
+fs.mkdirSync(DIRETORIO_UPLOADS_MENSAGENS, { recursive: true });
+
+const PREFIXO_URL_UPLOADS_MENSAGENS = '/uploads/mensagens/';
+
 // Apaga o arquivo físico de uma imagem de item. Tolerante a arquivo já não existir
 // (ENOENT) — isso pode acontecer de forma legítima (ex: remoção duplicada, arquivo
 // já limpo manualmente) e não deve virar erro 500 pro usuário.
@@ -26,4 +33,21 @@ async function removerArquivoFisico(nomeArquivo) {
   }
 }
 
-module.exports = { DIRETORIO_UPLOADS_ITENS, PREFIXO_URL_UPLOADS_ITENS, removerArquivoFisico };
+async function removerArquivoFisicoMensagem(nomeArquivo) {
+  try {
+    await fsPromises.unlink(path.join(DIRETORIO_UPLOADS_MENSAGENS, nomeArquivo));
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.error('[uploads] Falha ao remover anexo de mensagem:', err.message);
+    }
+  }
+}
+
+module.exports = {
+  DIRETORIO_UPLOADS_ITENS,
+  PREFIXO_URL_UPLOADS_ITENS,
+  removerArquivoFisico,
+  DIRETORIO_UPLOADS_MENSAGENS,
+  PREFIXO_URL_UPLOADS_MENSAGENS,
+  removerArquivoFisicoMensagem,
+};

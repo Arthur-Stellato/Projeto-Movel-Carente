@@ -6,6 +6,9 @@ const { validarUuidParam } = require('../middlewares/validarId.middleware');
 const { validar } = require('../middlewares/validar.middleware');
 const solicitacaoValidation = require('../validations/solicitacao.validation');
 const avaliacaoValidation = require('../validations/avaliacao.validation');
+const mensagemValidation = require('../validations/mensagem.validation');
+const mensagemController = require('../controllers/mensagem.controller');
+const { uploadAnexoMensagem } = require('../middlewares/uploadMensagem.middleware');
 
 const router = express.Router();
 
@@ -45,6 +48,7 @@ router.post('/', validar(solicitacaoValidation.criar), solicitacaoController.cri
  * /solicitacoes/minhas:
  *   get:
  *     summary: Lista as solicitações feitas pelo usuário autenticado (paginado)
+ *     description: Cada item traz `mensagensNaoLidas` — contador de mensagens do chat que o doador mandou e o solicitante ainda não abriu (fase 8).
  *     tags: [Solicitações]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
@@ -74,6 +78,7 @@ router.get('/minhas', solicitacaoController.minhasSolicitacoes);
  * /solicitacoes/item/{itemId}:
  *   get:
  *     summary: Lista as solicitações recebidas em um item, paginado (só o doador do item ou admin)
+ *     description: Cada item traz `mensagensNaoLidas` — sempre 0 quando quem chama é admin (fase 8).
  *     tags: [Solicitações]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
@@ -247,5 +252,183 @@ router.post('/:id/avaliacoes', validarUuidParam('id'), validar(avaliacaoValidati
  *       404: { $ref: '#/components/responses/NaoEncontrado' }
  */
 router.get('/:id/avaliacoes', validarUuidParam('id'), avaliacaoController.listarPorSolicitacao);
+
+/**
+ * @swagger
+ * /solicitacoes/{id}/mensagens:
+ *   get:
+ *     summary: Lista o histórico de mensagens trocadas na solicitação (apenas participantes ou admin)
+ *     description: >
+ *       Como efeito colateral, marca como lida toda mensagem enviada pela outra
+ *       parte (não conta como leitura quando quem chama é admin). Pra avisar o
+ *       remetente em tempo real quando isso acontece, o cliente também deve
+ *       emitir o evento de socket `mensagem:marcar_lida` (ver fase 8 do chat).
+ *
+ *       Paginação por cursor (fase 9), não por página numerada — chat é o
+ *       único recurso do projeto cuja lista cresce em tempo real enquanto é
+ *       consultada, então "página 2" deslizaria toda vez que chegasse
+ *       mensagem nova. Sem `antesDe`, devolve o final da conversa (mensagens
+ *       mais recentes); pra carregar mais antigas (scroll pra cima), repita a
+ *       chamada passando `antesDe=<paginacao.proximoCursor da resposta
+ *       anterior>`. Mensagens sempre vêm em ordem cronológica (mais antiga
+ *       primeiro) dentro da página, prontas pra renderizar direto na tela.
+ *     tags: [Chat]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *       - in: query
+ *         name: limite
+ *         schema: { type: integer, default: 30 }
+ *         description: Máximo de mensagens por página (teto de 100).
+ *       - in: query
+ *         name: antesDe
+ *         schema: { type: string, format: uuid }
+ *         description: Id de mensagem já carregada — busca a leva anterior a ela (mais antiga). Omitir pra pegar o final da conversa.
+ *     responses:
+ *       200: { description: "{ solicitacao, mensagens, paginacao: { limite, temMais, proximoCursor } }" }
+ *       400: { description: "\"antesDe\" mal formado ou de outra conversa" }
+ *       403: { $ref: '#/components/responses/Proibido' }
+ *       404: { $ref: '#/components/responses/NaoEncontrado' }
+ */
+router.get('/:id/mensagens', validarUuidParam('id'), solicitacaoController.listarMensagens);
+
+/**
+ * @swagger
+ * /solicitacoes/{id}/mensagens:
+ *   post:
+ *     summary: Envia uma nova mensagem para a solicitação (apenas participantes)
+ *     tags: [Chat]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [conteudo]
+ *             properties:
+ *               conteudo: { type: string, maxLength: 2000, nullable: true }
+ *               anexoUrl: { type: string, example: /uploads/mensagens/arquivo.jpg, nullable: true }
+ *               anexoTipo: { type: string, enum: [imagem, video], nullable: true }
+ *     responses:
+ *       201: { description: "Mensagem enviada com sucesso" }
+ *       400: { $ref: '#/components/responses/DadosInvalidos' }
+ *       403: { $ref: '#/components/responses/Proibido' }
+ *       409: { description: "Conversa encerrada" }
+ */
+router.post('/:id/mensagens', validarUuidParam('id'), validar(mensagemValidation.enviar), solicitacaoController.enviarMensagem);
+
+/**
+ * @swagger
+ * /solicitacoes/{id}/mensagens/anexo:
+ *   post:
+ *     summary: Envia uma imagem ou vídeo para anexar a uma mensagem
+ *     tags: [Chat]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [arquivo]
+ *             properties:
+ *               arquivo: { type: string, format: binary, description: "Imagem JPEG/PNG/WebP (até 5MB) ou vídeo MP4/WebM/MOV (até 50MB)" }
+ *     responses:
+ *       201:
+ *         description: Arquivo enviado; use a URL e o tipo retornados no envio da mensagem
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 url: { type: string, example: /uploads/mensagens/uuid.jpg }
+ *                 tipo: { type: string, enum: [imagem, video] }
+ *       400: { $ref: '#/components/responses/DadosInvalidos' }
+ *       403: { $ref: '#/components/responses/Proibido' }
+ */
+router.post('/:id/mensagens/anexo', validarUuidParam('id'), uploadAnexoMensagem, mensagemController.enviarAnexo);
+
+/**
+ * @swagger
+ * /solicitacoes/{id}/mensagens/{mensagemId}:
+ *   patch:
+ *     summary: Edita o texto de uma mensagem própria (janela de 15 minutos após o envio)
+ *     tags: [Chat]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *       - in: path
+ *         name: mensagemId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [conteudo]
+ *             properties:
+ *               conteudo: { type: string, maxLength: 2000 }
+ *     responses:
+ *       200: { description: "Mensagem editada com sucesso" }
+ *       400: { $ref: '#/components/responses/DadosInvalidos' }
+ *       403: { description: "Não é o remetente da mensagem" }
+ *       404: { $ref: '#/components/responses/NaoEncontrado' }
+ *       409: { description: "Prazo de edição expirado, mensagem apagada ou conversa encerrada" }
+ */
+router.patch(
+  '/:id/mensagens/:mensagemId',
+  validarUuidParam('id'),
+  validarUuidParam('mensagemId'),
+  validar(mensagemValidation.editar),
+  solicitacaoController.editarMensagem
+);
+
+/**
+ * @swagger
+ * /solicitacoes/{id}/mensagens/{mensagemId}:
+ *   delete:
+ *     summary: Apaga uma mensagem própria (remove conteúdo/anexo de vez; sem prazo)
+ *     tags: [Chat]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *       - in: path
+ *         name: mensagemId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: "Mensagem apagada com sucesso (conteúdo/anexo removidos)" }
+ *       403: { description: "Não é o remetente da mensagem" }
+ *       404: { $ref: '#/components/responses/NaoEncontrado' }
+ *       409: { description: "Mensagem já apagada" }
+ */
+router.delete(
+  '/:id/mensagens/:mensagemId',
+  validarUuidParam('id'),
+  validarUuidParam('mensagemId'),
+  solicitacaoController.deletarMensagem
+);
 
 module.exports = router;

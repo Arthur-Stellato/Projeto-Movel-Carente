@@ -50,13 +50,10 @@ app.use(pinoHttp({ logger }));
 // sempre devolveria o MESMO valor pra qualquer origem, o que faria o navegador
 // bloquear qualquer origem diferente da configurada (foi exatamente esse o bug:
 // CORS_ORIGIN fixo em localhost:3000 bloqueava o frontend rodando em localhost:5173).
-const origensPermitidas = (process.env.CORS_ORIGIN)
-  .split(',')
-  .map((origem) => origem.trim())
-  .filter(Boolean);
+const { origensPermitidas } = require('./lib/origensPermitidas');
 
 app.use(cors({
-  origin: origensPermitidas,
+  origin: origensPermitidas(),
   credentials: true,
 }));
 app.use(cookieParser());
@@ -111,26 +108,34 @@ app.use(
 );
 app.get('/docs.json', (req, res) => res.json(swaggerSpec));
 
-// Serve os arquivos de imagem enviados por upload (ver src/lib/uploads.js e
-// src/middlewares/upload.middleware.js). Protegido com nosniff e sandbox.
-app.use(
-  '/uploads',
-  express.static(path.join(__dirname, '..', 'uploads'), {
-    setHeaders: (res) => {
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
-    },
-  })
-);
-
 // Rate limiting geral, aplicado a partir daqui (não conta health check nem docs).
 // autenticarOpcional roda antes só pra popular req.usuario quando o Bearer token
 // já veio na requisição — o rate limiter usa isso pra liberar administradores do
 // limite (ver skip em config/rateLimiter.js). Nunca bloqueia por si só: quem não
 // mandar token nenhum, ou mandar um inválido, segue como visitante anônimo normal
 // e cai no limite padrão igual antes.
+//
+// IMPORTANTE: isso precisa vir ANTES do app.use('/uploads', ...) logo abaixo —
+// ficava antes depois dele, o que deixava toda imagem de item servida sem
+// nenhum limite de requisição (as URLs de imagem são públicas, aparecem em
+// qualquer anúncio, então isso era uma superfície de esgotamento de banda
+// fácil de explorar).
 app.use(autenticarOpcional);
 app.use(limitadorGeral);
+
+// Serve os arquivos de imagem enviados por upload (ver src/lib/uploads.js e
+// src/middlewares/upload.middleware.js). Protegido com nosniff e sandbox.
+app.use(
+  '/uploads',
+  (req, res, next) => {
+    // express.static só chama setHeaders quando o arquivo existe. Aplicar os
+    // cabeçalhos antes também protege respostas 404 sob esta rota.
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+    next();
+  },
+  express.static(path.join(__dirname, '..', 'uploads'))
+);
 
 app.use('/auth', authRoutes);
 app.use('/categorias', categoriaRoutes);

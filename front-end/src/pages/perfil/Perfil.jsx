@@ -11,12 +11,18 @@ import { useAuth } from '../../context/AuthContext';
 import { usuarioService } from '../../services/usuario.service';
 import { mensagemDeErro } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
+import { GENEROS } from '../../constants';
 
 export default function Perfil() {
   const { usuario, atualizarUsuario } = useAuth();
   const { mostrar } = useToast();
 
-  const [dados, setDados] = useState({ primeiroNome: usuario.primeiroNome, ultimoNome: usuario.ultimoNome, telefone: usuario.telefone || '' });
+  const [dados, setDados] = useState({
+    primeiroNome: usuario.primeiroNome,
+    ultimoNome: usuario.ultimoNome,
+    telefone: usuario.telefone || '',
+    genero: usuario.genero || 'prefiro_nao_dizer',
+  });
   const [salvandoDados, setSalvandoDados] = useState(false);
   const [erroDados, setErroDados] = useState('');
 
@@ -84,6 +90,16 @@ export default function Perfil() {
             <Form.Group className="mb-3">
               <Form.Label>Telefone</Form.Label>
               <Form.Control value={dados.telefone} onChange={(e) => setDados((a) => ({ ...a, telefone: e.target.value }))} placeholder="(00) 00000-0000" />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Gênero</Form.Label>
+              <Form.Select value={dados.genero} onChange={(e) => setDados((a) => ({ ...a, genero: e.target.value }))}>
+                {GENEROS.map((g) => (
+                  <option key={g.valor} value={g.valor}>
+                    {g.rotulo}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
             <Row>
               <Col md={6} className="mb-3">

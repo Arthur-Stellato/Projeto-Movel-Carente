@@ -11,9 +11,12 @@ async function listar({ incluirInativas = false } = {}) {
   });
 }
 
-async function buscarPorId(id) {
+async function buscarPorId(id, { incluirInativas = false } = {}) {
   const categoria = await prisma.categoria.findUnique({ where: { id } });
-  if (!categoria) {
+  // Mesma regra da listagem: sem o opt-in de admin, categoria inativa não
+  // aparece — antes essa função devolvia qualquer categoria, ativa ou não,
+  // pra qualquer um (inconsistente com GET /categorias, que já filtrava).
+  if (!categoria || (!incluirInativas && !categoria.ativo)) {
     throw new ErroCategoria('Categoria não encontrada', 404);
   }
   return categoria;
@@ -42,7 +45,10 @@ async function criar({ nome, icone }) {
 // Vazio explícito e tamanho máximo de nome/ícone já são checados pelo Joi na
 // rota (PUT /categorias/:id) — aqui sobra o slug e a checagem de duplicidade.
 async function atualizar(id, { nome, icone, ativo }) {
-  await buscarPorId(id); // dispara 404 se não existir
+  // {incluirInativas: true}: isto é sempre uma operação de admin (gated por
+  // apenasAdmin na rota) — precisa achar a categoria pra editar mesmo que ela
+  // já esteja inativa (ex: corrigir o nome antes de reativar).
+  await buscarPorId(id, { incluirInativas: true }); // dispara 404 se não existir
 
   const dados = {};
 
@@ -68,7 +74,7 @@ async function atualizar(id, { nome, icone, ativo }) {
 }
 
 async function desativar(id) {
-  await buscarPorId(id);
+  await buscarPorId(id, { incluirInativas: true }); // idem: operação de admin, independe do estado atual
   // Soft delete: mantém a categoria (itens já cadastrados continuam íntegros),
   // só deixa de aparecer para novos cadastros.
   return prisma.categoria.update({ where: { id }, data: { ativo: false } });

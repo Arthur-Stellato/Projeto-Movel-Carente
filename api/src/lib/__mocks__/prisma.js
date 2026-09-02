@@ -15,7 +15,7 @@ function criarModelMock(metodos) {
   return model;
 }
 
-const METODOS_PADRAO = ['findUnique', 'findFirst', 'findMany', 'create', 'createMany', 'update', 'updateMany', 'upsert', 'delete', 'count'];
+const METODOS_PADRAO = ['findUnique', 'findFirst', 'findMany', 'create', 'createMany', 'update', 'updateMany', 'upsert', 'delete', 'count', 'groupBy'];
 
 const prisma = {
   usuario: criarModelMock(METODOS_PADRAO),
@@ -32,6 +32,7 @@ const prisma = {
   denuncia: criarModelMock(METODOS_PADRAO),
   favorito: criarModelMock(METODOS_PADRAO),
   avaliacao: criarModelMock(METODOS_PADRAO),
+  mensagem: criarModelMock(METODOS_PADRAO),
   eventoOutbox: criarModelMock(METODOS_PADRAO),
   cepCache: criarModelMock(METODOS_PADRAO),
   cidadeCentroide: criarModelMock(METODOS_PADRAO),

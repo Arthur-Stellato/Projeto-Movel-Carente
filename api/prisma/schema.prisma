@@ -16,6 +16,17 @@ enum TipoUsuario {
   admin
 }
 
+// "prefiro_nao_dizer" existe como opção de propósito — o campo é obrigatório
+// (sempre tem um valor, nunca null), mas ninguém é forçado a se identificar
+// como masculino/feminino/outro se não quiser. Default do banco cobre linhas
+// já existentes na hora da migração e também o registro sem o campo.
+enum Genero {
+  masculino
+  feminino
+  prefiro_nao_dizer
+  outro
+}
+
 enum TipoToken {
   recuperacao_senha
   verificacao_email
@@ -47,6 +58,7 @@ enum TipoNotificacao {
   solicitacao_recusada
   item_denunciado
   sistema
+  nova_mensagem
 }
 
 enum TipoDenuncia {
@@ -98,12 +110,14 @@ enum UF {
 model Usuario {
   id                    String    @id @default(uuid()) @db.Uuid
   email                 String    @unique @db.VarChar(255)
-  cpf                   String    @unique @db.VarChar(11)
+  cpf                   String?   @unique @db.VarChar(11)
+  cnpj                  String?   @unique @db.VarChar(14)
   senhaHash             String?   @map("senha_hash") @db.VarChar(255)
   primeiroNome          String    @map("primeiro_nome") @db.VarChar(100)
   ultimoNome            String    @map("ultimo_nome") @db.VarChar(100)
   telefone              String?   @db.VarChar(20)
   tipo                  TipoUsuario @default(usuario)
+  genero                Genero    @default(prefiro_nao_dizer)
   emailVerificado       Boolean   @default(false) @map("email_verificado")
   ativo                 Boolean   @default(true)
   tentativasLoginFalhas Int       @default(0) @map("tentativas_login_falhas")
@@ -127,6 +141,7 @@ model Usuario {
   favoritos           Favorito[]
   avaliacoesFeitas    Avaliacao[]       @relation("AvaliacoesFeitas")
   avaliacoesRecebidas Avaliacao[]       @relation("AvaliacoesRecebidas")
+  mensagens           Mensagem[]
 
   @@map("usuarios")
 }
@@ -324,9 +339,53 @@ model SolicitacaoItem {
   item        ItemDoacao @relation(fields: [itemId], references: [id], onDelete: Cascade)
   solicitante Usuario    @relation("SolicitanteSolicitacoes", fields: [solicitanteId], references: [id], onDelete: Cascade)
   avaliacoes  Avaliacao[]
+  mensagens   Mensagem[]
 
   @@unique([itemId, solicitanteId])
   @@map("solicitacoes_item")
+}
+
+// ============================================================
+// CHAT
+// ============================================================
+
+enum TipoAnexoMensagem {
+  imagem
+  video
+}
+
+// Amarrada à solicitação, não é DM genérico entre dois usuários quaisquer —
+// só doador e solicitante DAQUELA solicitação específica podem trocar
+// mensagem (checado em src/services/mensagem.service.js, reaproveitando a
+// mesma função ehParticipante já usada em avaliacao.service.js).
+model Mensagem {
+  id            String             @id @default(uuid()) @db.Uuid
+  solicitacaoId String             @map("solicitacao_id") @db.Uuid
+  remetenteId   String             @map("remetente_id") @db.Uuid
+  conteudo      String?            @db.VarChar(2000)
+  anexoUrl      String?            @map("anexo_url") @db.VarChar(500)
+  anexoTipo     TipoAnexoMensagem? @map("anexo_tipo")
+  lida          Boolean            @default(false)
+  editadoEm     DateTime?          @map("editado_em")
+  deletadoEm    DateTime?          @map("deletado_em")
+  criadoEm      DateTime           @default(now()) @map("criado_em")
+
+  solicitacao SolicitacaoItem @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  remetente   Usuario         @relation(fields: [remetenteId], references: [id], onDelete: Cascade)
+
+  // NOTA: o CHECK "conteudo IS NOT NULL OR anexo_url IS NOT NULL OR
+  // deletado_em IS NOT NULL" (mensagem precisa ter texto, anexo, OU estar
+  // apagada — nunca texto e anexo vazios ao mesmo tempo numa mensagem viva)
+  // não é suportado nativamente pelo Prisma Schema — mesma situação já
+  // documentada acima pro CHECK de nota (1-5) em Avaliacao e o XOR
+  // item/usuário em Denuncia. Nasceu mais simples na fase 1 (sem a exceção
+  // de apagada) e foi alterado na fase 6, quando o soft-delete passou a
+  // zerar conteudo e anexo_url juntos por privacidade — ver migration
+  // 20260902090000_permite_mensagem_apagada. O Joi em mensagem.validation.js
+  // cobre a regra de envio (texto OU anexo) na aplicação; este CHECK é a
+  // rede de segurança no banco.
+  @@index([solicitacaoId, criadoEm])
+  @@map("mensagens")
 }
 
 // ============================================================

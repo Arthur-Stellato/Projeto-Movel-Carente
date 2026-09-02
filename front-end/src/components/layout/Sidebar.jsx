@@ -8,6 +8,7 @@ const ITENS_NAV = [
   { to: '/itens', rotulo: 'Buscar itens', icone: 'bi-search' },
   { to: '/painel/meus-itens', rotulo: 'Meus itens', icone: 'bi-box-seam' },
   { to: '/painel/solicitacoes', rotulo: 'Minhas solicitações', icone: 'bi-hand-index-thumb' },
+  { to: '/painel/conversas', rotulo: 'Conversas & Chat', icone: 'bi-chat-dots' },
   { to: '/painel/favoritos', rotulo: 'Favoritos', icone: 'bi-heart' },
   { to: '/painel/notificacoes', rotulo: 'Notificações', icone: 'bi-bell' },
   { to: '/painel/denuncias', rotulo: 'Minhas denúncias', icone: 'bi-flag' },

@@ -31,7 +31,7 @@ router.get('/me', usuarioController.buscarPerfil);
  * @swagger
  * /usuarios/me:
  *   put:
- *     summary: Atualiza nome/telefone do próprio perfil (email e CPF não são editáveis)
+ *     summary: Atualiza nome/telefone/gênero do próprio perfil (email e CPF não são editáveis)
  *     tags: [Usuários]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
@@ -43,6 +43,7 @@ router.get('/me', usuarioController.buscarPerfil);
  *               primeiroNome: { type: string }
  *               ultimoNome: { type: string }
  *               telefone: { type: string }
+ *               genero: { type: string, enum: [masculino, feminino, prefiro_nao_dizer, outro] }
  *     responses:
  *       200:
  *         description: Perfil atualizado

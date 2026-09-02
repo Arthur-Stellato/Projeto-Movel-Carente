@@ -1,5 +1,5 @@
 const Joi = require('joi');
-const { validarCpf, validarCep, validarForcaSenha, ehEmailDescartavel, validarTelefone, UFS_VALIDAS } = require('../lib/validadores');
+const { validarCpf, validarCnpj, validarCep, validarForcaSenha, ehEmailDescartavel, validarTelefone, UFS_VALIDAS, GENEROS_VALIDOS } = require('../lib/validadores');
 
 // ============================================================
 // Blocos reutilizáveis de Joi — cada um encapsula uma regra de formato usada
@@ -25,6 +25,14 @@ const cpf = Joi.string()
     return digitos;
   })
   .messages({ 'any.invalid': 'CPF inválido' });
+
+const cnpj = Joi.string()
+  .custom((valor, helpers) => {
+    const digitos = String(valor || '').replace(/\D/g, '');
+    if (!validarCnpj(digitos)) return helpers.error('any.invalid');
+    return digitos;
+  })
+  .messages({ 'any.invalid': 'CNPJ inválido' });
 
 // Aceita CEP formatado (00000-000) ou só dígitos — validarCep já normaliza.
 const cep = Joi.string()
@@ -84,4 +92,14 @@ const telefone = Joi.string()
   })
   .messages({ 'any.invalid': 'Telefone inválido. Use um número brasileiro válido, com DDD' });
 
-module.exports = { uuid, cpf, cep, uf, email, senhaForte, telefone };
+// "prefiro_nao_dizer" é um valor tão válido quanto os outros — nunca opcional
+// aqui só por si (quem quer omitir/recusar responder usa esse valor, não
+// deixa o campo de fora). Cada schema que usa este bloco decide se o campo em
+// si é obrigatório ou opcional (registro x atualização de perfil, por exemplo).
+const genero = Joi.string()
+  .valid(...GENEROS_VALIDOS)
+  .messages({
+    'any.only': `Gênero inválido. Use um destes: ${GENEROS_VALIDOS.join(', ')}`,
+  });
+
+module.exports = { uuid, cpf, cnpj, cep, uf, email, senhaForte, telefone, genero };

@@ -8,6 +8,7 @@ const prisma = require('../../src/lib/prisma');
 const usuarioService = require('../../src/services/usuario.service');
 
 const CPF_VALIDO = '11144477735';
+const CNPJ_VALIDO = '11222333000181';
 
 describe('registrar', () => {
   test('rejeita email/cpf já cadastrado', async () => {
@@ -17,6 +18,20 @@ describe('registrar', () => {
       email: 'joana@example.com', cpf: CPF_VALIDO, senha: 'SenhaForte@123',
       primeiroNome: 'Joana', ultimoNome: 'Silva',
     })).rejects.toMatchObject({ status: 409 });
+  });
+
+  test('corrida rara (dois registros simultâneos passam no findFirst, um esbarra na constraint do banco): mesma mensagem genérica, sem revelar qual campo colidiu', async () => {
+    prisma.usuario.findFirst.mockResolvedValue(null); // nenhum dos dois viu o outro ainda
+    const erroPrisma = new Error('Unique constraint failed on the fields: (`email`)');
+    erroPrisma.name = 'PrismaClientKnownRequestError';
+    erroPrisma.code = 'P2002';
+    erroPrisma.meta = { target: ['email'] };
+    prisma.usuario.create.mockRejectedValue(erroPrisma);
+
+    await expect(usuarioService.registrar({
+      email: 'joana@example.com', cpf: CPF_VALIDO, senha: 'SenhaForte@123',
+      primeiroNome: 'Joana', ultimoNome: 'Silva',
+    })).rejects.toMatchObject({ status: 409, message: 'Email ou documento já cadastrado' });
   });
 
   test('cria o usuário com sucesso e devolve dados sanitizados (sem senhaHash)', async () => {
@@ -69,6 +84,25 @@ describe('registrar', () => {
 
     expect(prisma.usuario.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ cpf: CPF_VALIDO }),
+    });
+  });
+
+  test('aceita CNPJ e o normaliza antes de consultar e salvar', async () => {
+    prisma.usuario.findFirst.mockResolvedValue(null);
+    prisma.usuario.create.mockResolvedValue({ id: 'empresa-1', primeiroNome: 'Empresa', ultimoNome: 'Parceira' });
+    prisma.tokenUsuario.updateMany.mockResolvedValue({});
+    prisma.tokenUsuario.create.mockResolvedValue({});
+
+    await usuarioService.registrar({
+      email: 'empresa@example.com', cnpj: '11.222.333/0001-81', senha: 'SenhaForte@123',
+      primeiroNome: 'Empresa', ultimoNome: 'Parceira',
+    });
+
+    expect(prisma.usuario.findFirst).toHaveBeenCalledWith({
+      where: { OR: [{ email: 'empresa@example.com' }, { cnpj: CNPJ_VALIDO }] },
+    });
+    expect(prisma.usuario.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ cnpj: CNPJ_VALIDO }),
     });
   });
 

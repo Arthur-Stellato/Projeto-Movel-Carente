@@ -1,10 +1,11 @@
 const Joi = require('joi');
-const { cpf, cep, uf, email, senhaForte, telefone } = require('./comuns');
+const { cpf, cnpj, cep, uf, email, senhaForte, telefone, genero } = require('./comuns');
 
 // POST /auth/registro
 const registro = Joi.object({
   email: email.required(),
-  cpf: cpf.required(),
+  cpf,
+  cnpj,
   senha: senhaForte.required(),
   primeiroNome: Joi.string().trim().min(1).max(100).required().messages({
     'string.empty': 'Campos obrigatórios ausentes',
@@ -17,9 +18,14 @@ const registro = Joi.object({
     'string.max': 'Último nome deve ter no máximo 100 caracteres',
   }),
   telefone: telefone.allow('', null),
-}).messages({
+  // Opcional de propósito: quem não informar cai no default do banco
+  // (prefiro_nao_dizer) — ninguém é obrigado a preencher isso pra se cadastrar.
+  genero,
+}).xor('cpf', 'cnpj').messages({
   'any.required': 'Campos obrigatórios ausentes',
   'string.empty': 'Campos obrigatórios ausentes',
+  'object.missing': 'Informe CPF ou CNPJ',
+  'object.xor': 'Informe CPF ou CNPJ, não os dois',
 });
 
 // PUT /usuarios/me — atualização parcial: qualquer campo pode ser omitido,
@@ -37,6 +43,7 @@ const atualizarPerfil = Joi.object({
     'string.max': 'Último nome deve ter no máximo 100 caracteres',
   }),
   telefone: telefone.allow('', null),
+  genero,
 });
 
 // PATCH /usuarios/me/senha

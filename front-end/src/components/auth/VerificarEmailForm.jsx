@@ -54,7 +54,7 @@ export default function VerificarEmailForm({ emailInicial, aoVerificado }) {
       {erro && <Alert variant="danger">{erro}</Alert>}
       {reenviado && (
         <Alert variant="success">
-          <i className="bi bi-envelope-check me-1" /> Código reenviado — confira sua caixa de entrada.
+          <i className="bi bi-envelope-check me-1" /> Link e código reenviados — confira sua caixa de entrada.
         </Alert>
       )}
 
@@ -70,20 +70,20 @@ export default function VerificarEmailForm({ emailInicial, aoVerificado }) {
         <Form.Control
           value={codigo}
           onChange={(e) => setCodigo(e.target.value)}
-          placeholder="Cole aqui o código que enviamos por email"
+          placeholder="Cole aqui o código de 6 dígitos enviado por email"
           required
           autoFocus
         />
-        <Form.Text>O código vale por algumas horas — se não recebeu ou expirou, peça um novo abaixo.</Form.Text>
+        <Form.Text>O código e o link valem por 24 horas — se não recebeu ou expirou, peça um novo abaixo.</Form.Text>
       </Form.Group>
 
       <Button type="submit" variant="primary" className="w-100 mb-2" disabled={verificando}>
         {verificando && <Spinner animation="border" size="sm" className="me-2" />}
-        Verificar
+        Verificar código
       </Button>
       <Button type="button" variant="link" className="w-100" onClick={reenviar} disabled={reenviando}>
         {reenviando && <Spinner animation="border" size="sm" className="me-2" />}
-        Reenviar código
+        Reenviar link ou código
       </Button>
     </Form>
   );

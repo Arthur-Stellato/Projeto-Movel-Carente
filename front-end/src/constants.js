@@ -8,6 +8,13 @@ export const UFS = [
   'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
 ];
 
+export const GENEROS = [
+  { valor: 'masculino', rotulo: 'Masculino' },
+  { valor: 'feminino', rotulo: 'Feminino' },
+  { valor: 'outro', rotulo: 'Outro' },
+  { valor: 'prefiro_nao_dizer', rotulo: 'Prefiro não dizer' },
+];
+
 export const CONDICOES_ITEM = [
   { valor: 'novo', rotulo: 'Novo' },
   { valor: 'seminovo', rotulo: 'Seminovo' },

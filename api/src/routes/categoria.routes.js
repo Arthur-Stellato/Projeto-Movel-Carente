@@ -34,6 +34,7 @@ router.get('/', autenticarOpcional, categoriaController.listar);
  * /categorias/{id}:
  *   get:
  *     summary: Busca uma categoria por id
+ *     description: Categoria inativa só aparece para administradores autenticados.
  *     tags: [Categorias]
  *     parameters:
  *       - in: path
@@ -48,7 +49,7 @@ router.get('/', autenticarOpcional, categoriaController.listar);
  *             schema: { type: object, properties: { categoria: { $ref: '#/components/schemas/Categoria' } } }
  *       404: { $ref: '#/components/responses/NaoEncontrado' }
  */
-router.get('/:id', validarUuidParam('id'), categoriaController.buscarPorId);
+router.get('/:id', autenticarOpcional, validarUuidParam('id'), categoriaController.buscarPorId);
 
 /**
  * @swagger

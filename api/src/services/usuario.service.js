@@ -20,25 +20,44 @@ class ErroUsuario extends ErroDominio {}
 // operação sobre usuário, não sobre autenticação em si)
 // ============================================================
 
-// Formato de email/CPF/senha e limites de tamanho já foram checados pelo Joi
+// Formato de email/CPF/CNPJ/senha e limites de tamanho já foram checados pelo Joi
 // na rota (/auth/registro) — o que sobra aqui é a regra que só o banco pode
-// responder: email ou CPF já cadastrado.
-async function registrar({ email, cpf, senha, primeiroNome, ultimoNome, telefone }) {
+// responder: email ou documento já cadastrado.
+async function registrar({ email, cpf, cnpj, senha, primeiroNome, ultimoNome, telefone, genero }) {
   const cpfLimpo = apenasDigitos(cpf);
+  const cnpjLimpo = apenasDigitos(cnpj);
   const emailNormalizado = normalizarEmail(email);
+  const documento = cpfLimpo ? { cpf: cpfLimpo } : { cnpj: cnpjLimpo };
 
   const jaExiste = await prisma.usuario.findFirst({
-    where: { OR: [{ email: emailNormalizado }, { cpf: cpfLimpo }] },
+    where: { OR: [{ email: emailNormalizado }, documento] },
   });
   if (jaExiste) {
-    throw new ErroUsuario('Email ou CPF já cadastrado', 409);
+    throw new ErroUsuario('Email ou documento já cadastrado', 409);
   }
 
   const senhaHash = await bcrypt.hash(senha, SALT_ROUNDS);
 
-  const usuario = await prisma.usuario.create({
-    data: { email: emailNormalizado, cpf: cpfLimpo, senhaHash, primeiroNome, ultimoNome, telefone },
-  });
+  let usuario;
+  try {
+    usuario = await prisma.usuario.create({
+      // genero: undefined faz o Prisma cair no @default(prefiro_nao_dizer) do
+      // schema — não precisa de um `|| 'prefiro_nao_dizer'` manual aqui.
+      data: { email: emailNormalizado, ...documento, senhaHash, primeiroNome, ultimoNome, telefone, genero },
+    });
+  } catch (err) {
+    // Cobre a corrida rara de dois registros com o mesmo email/documento chegando ao
+    // mesmo tempo: os dois passam pelo findFirst acima (nenhum vê o outro
+    // ainda), e só um consegue criar — o outro esbarra na constraint UNIQUE do
+    // banco. Sem esse catch, esse caminho cairia no handler genérico de erro
+    // do Prisma (src/lib/erros.js), que revela QUAL campo colidiu — quebrando
+    // de propósito a mensagem genérica de cima, que existe justamente pra não
+    // revelar isso. Convertemos pra mesma mensagem genérica aqui também.
+    if (err && err.name === 'PrismaClientKnownRequestError' && err.code === 'P2002') {
+      throw new ErroUsuario('Email ou documento já cadastrado', 409);
+    }
+    throw err;
+  }
 
   // Dispara o email de verificação (não bloqueia o registro por causa disso —
   // enviarVerificacaoEmail só grava um evento de outbox, nunca toca o Redis
@@ -67,9 +86,9 @@ async function buscarPerfil(usuarioId) {
 // Vazio explícito e limites de tamanho já são barrados pelo Joi na rota
 // (PUT /usuarios/me) — aqui só filtramos quais campos são editáveis.
 async function atualizarPerfil(usuarioId, dados) {
-  // Propositalmente NÃO incluímos email/cpf aqui: email exigiria reverificação,
-  // e CPF não deveria mudar depois de cadastrado. Ambos ficam de fora por segurança.
-  const permitido = ['primeiroNome', 'ultimoNome', 'telefone'];
+  // Propositalmente NÃO incluímos email/cpf/cnpj aqui: email exigiria reverificação,
+  // e o documento não deve mudar depois de cadastrado. Todos ficam de fora por segurança.
+  const permitido = ['primeiroNome', 'ultimoNome', 'telefone', 'genero'];
   const atualizacao = {};
   for (const campo of permitido) {
     if (dados[campo] !== undefined) {

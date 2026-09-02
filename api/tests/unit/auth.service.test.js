@@ -43,6 +43,7 @@ describe('login', () => {
 
   test('rejeita conta desativada', async () => {
     prisma.usuario.findUnique.mockResolvedValue(criarUsuarioFake({ ativo: false }));
+    jest.spyOn(bcrypt, 'compare').mockResolvedValue(true); // senha certa: só assim a checagem de status é alcançada
 
     await expect(authService.login({ email: 'joana@example.com', senha: '12345678' }))
       .rejects.toMatchObject({ status: 403 });
@@ -51,9 +52,40 @@ describe('login', () => {
   test('rejeita login enquanto a conta estiver bloqueada, informando minutos restantes', async () => {
     const bloqueadoAte = new Date(Date.now() + 10 * 60000);
     prisma.usuario.findUnique.mockResolvedValue(criarUsuarioFake({ bloqueadoAte }));
+    jest.spyOn(bcrypt, 'compare').mockResolvedValue(true); // senha certa: só assim a checagem de status é alcançada
 
     await expect(authService.login({ email: 'joana@example.com', senha: '12345678' }))
       .rejects.toMatchObject({ status: 403 });
+  });
+
+  test('NÃO revela que a conta está desativada quando a senha está errada (evita enumeração de contas)', async () => {
+    const usuario = criarUsuarioFake({ ativo: false });
+    prisma.usuario.findUnique.mockResolvedValue(usuario);
+    prisma.usuario.update.mockResolvedValue({});
+    jest.spyOn(bcrypt, 'compare').mockResolvedValue(false);
+
+    await expect(authService.login({ email: 'joana@example.com', senha: 'errada' }))
+      .rejects.toMatchObject({ message: 'Email ou senha inválidos', status: 401 });
+  });
+
+  test('NÃO revela que a conta está bloqueada quando a senha está errada (evita enumeração de contas)', async () => {
+    const bloqueadoAte = new Date(Date.now() + 10 * 60000);
+    const usuario = criarUsuarioFake({ bloqueadoAte });
+    prisma.usuario.findUnique.mockResolvedValue(usuario);
+    prisma.usuario.update.mockResolvedValue({});
+    jest.spyOn(bcrypt, 'compare').mockResolvedValue(false);
+
+    await expect(authService.login({ email: 'joana@example.com', senha: 'errada' }))
+      .rejects.toMatchObject({ message: 'Email ou senha inválidos', status: 401 });
+  });
+
+  test('roda bcrypt.compare mesmo quando o usuário não existe (evita diferença de tempo perceptível)', async () => {
+    prisma.usuario.findUnique.mockResolvedValue(null);
+    const espiao = jest.spyOn(bcrypt, 'compare');
+
+    await expect(authService.login({ email: 'naoexiste@example.com', senha: '12345678' })).rejects.toThrow();
+
+    expect(espiao).toHaveBeenCalledWith('12345678', expect.any(String));
   });
 
   test('permite login normalmente quando o bloqueio anterior já expirou', async () => {
@@ -227,13 +259,28 @@ describe('solicitarRecuperacaoSenha', () => {
     expect(prisma.$transaction).toHaveBeenCalled();
   });
 
-  test('em ambiente não-produção, devolve o token na resposta (facilita testar sem checar email)', async () => {
+  test('com EXPOR_TOKENS_DEV=true, devolve o token na resposta (facilita testar sem checar email)', async () => {
     prisma.usuario.findUnique.mockResolvedValue(criarUsuarioFake());
     prisma.tokenUsuario.updateMany.mockResolvedValue({});
     prisma.tokenUsuario.create.mockResolvedValue({});
 
     const resultado = await authService.solicitarRecuperacaoSenha('joana@example.com');
     expect(resultado.token).toEqual(expect.any(String));
+  });
+
+  test('SEM EXPOR_TOKENS_DEV, não devolve o token — nem fora de produção (NODE_ENV sozinho não é mais suficiente)', async () => {
+    const valorOriginal = process.env.EXPOR_TOKENS_DEV;
+    delete process.env.EXPOR_TOKENS_DEV;
+    try {
+      prisma.usuario.findUnique.mockResolvedValue(criarUsuarioFake());
+      prisma.tokenUsuario.updateMany.mockResolvedValue({});
+      prisma.tokenUsuario.create.mockResolvedValue({});
+
+      const resultado = await authService.solicitarRecuperacaoSenha('joana@example.com');
+      expect(resultado).toBeUndefined();
+    } finally {
+      process.env.EXPOR_TOKENS_DEV = valorOriginal;
+    }
   });
 });
 

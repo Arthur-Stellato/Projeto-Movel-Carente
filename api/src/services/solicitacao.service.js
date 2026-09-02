@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma');
 const { normalizarPaginacao } = require('../lib/paginacao');
+const { contarNaoLidasPorSolicitacao } = require('./mensagem.service');
 
 const PAGINA_TAMANHO_PADRAO = 20;
 
@@ -67,7 +68,18 @@ async function listarPorItem(itemId, usuarioId, ehAdmin, { pagina = 1, tamanho =
     prisma.solicitacaoItem.count({ where: { itemId } }),
   ]);
 
-  return { solicitacoes, total, pagina: paginaNorm, tamanho: tamanhoNorm };
+  // Fase 8: contador de mensagens não lidas por conversa (badge tipo "3
+  // novas" sem abrir cada solicitação). Visita de admin não conta — ele não
+  // é destinatário de nada ali, contar do ponto de vista dele não faria
+  // sentido (toda mensagem pareceria "não lida" por ninguém ter mandado pra
+  // ele mesmo).
+  const naoLidasPorSolicitacao = ehAdmin ? {} : await contarNaoLidasPorSolicitacao(solicitacoes.map((s) => s.id), usuarioId);
+  const solicitacoesComContagem = solicitacoes.map((s) => ({
+    ...s,
+    mensagensNaoLidas: naoLidasPorSolicitacao[s.id] || 0,
+  }));
+
+  return { solicitacoes: solicitacoesComContagem, total, pagina: paginaNorm, tamanho: tamanhoNorm };
 }
 
 async function minhasSolicitacoes(usuarioId, { pagina = 1, tamanho = PAGINA_TAMANHO_PADRAO } = {}) {
@@ -86,7 +98,13 @@ async function minhasSolicitacoes(usuarioId, { pagina = 1, tamanho = PAGINA_TAMA
     prisma.solicitacaoItem.count({ where: { solicitanteId: usuarioId } }),
   ]);
 
-  return { solicitacoes, total, pagina: paginaNorm, tamanho: tamanhoNorm };
+  const naoLidasPorSolicitacao = await contarNaoLidasPorSolicitacao(solicitacoes.map((s) => s.id), usuarioId);
+  const solicitacoesComContagem = solicitacoes.map((s) => ({
+    ...s,
+    mensagensNaoLidas: naoLidasPorSolicitacao[s.id] || 0,
+  }));
+
+  return { solicitacoes: solicitacoesComContagem, total, pagina: paginaNorm, tamanho: tamanhoNorm };
 }
 
 async function buscarSolicitacaoComItem(solicitacaoId) {

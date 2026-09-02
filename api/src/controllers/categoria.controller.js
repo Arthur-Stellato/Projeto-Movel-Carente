@@ -15,7 +15,8 @@ async function listar(req, res) {
 
 async function buscarPorId(req, res) {
   try {
-    const categoria = await categoriaService.buscarPorId(req.params.id);
+    const incluirInativas = req.usuario?.tipo === 'admin';
+    const categoria = await categoriaService.buscarPorId(req.params.id, { incluirInativas });
     return res.status(200).json({ categoria });
   } catch (err) {
     return tratarErro(err, res);

@@ -108,7 +108,10 @@ export default function SolicitacoesRecebidas() {
                     </td>
                     <td className="text-secondary small mc-dado">{formatarTempoRelativo(s.criadoEm)}</td>
                     <td className="text-end">
-                      <div className="d-flex gap-2 justify-content-end">
+                      <div className="d-flex gap-2 justify-content-end align-items-center">
+                        <Button as={Link} to={`/painel/chat/${s.id}`} size="sm" variant="outline-primary">
+                          <i className="bi bi-chat-dots me-1" /> Chat
+                        </Button>
                         {s.status === 'pendente' && item?.status === 'disponivel' && (
                           <>
                             <Button size="sm" variant="primary" disabled={processando} onClick={() => executar(solicitacaoService.aceitar, s.id, 'Solicitação aceita.')}>
