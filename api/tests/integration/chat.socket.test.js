@@ -129,7 +129,9 @@ describe('solicitacao:entrar', () => {
     socket.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
     const confirmacao = await aguardarEvento(socket, 'solicitacao:entrou');
 
-    expect(confirmacao).toEqual({ solicitacaoId: SOLICITACAO_ID });
+    // usuariosOnline vem vazio aqui: ninguém mais entrou nesta sala ainda
+    // (fase 11 — ver describe('presença online') mais abaixo pro caso com alguém já dentro).
+    expect(confirmacao).toEqual({ solicitacaoId: SOLICITACAO_ID, usuariosOnline: [] });
   });
 
   test('aceita o solicitante e confirma a entrada na sala', async () => {
@@ -139,7 +141,7 @@ describe('solicitacao:entrar', () => {
     socket.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
     const confirmacao = await aguardarEvento(socket, 'solicitacao:entrou');
 
-    expect(confirmacao).toEqual({ solicitacaoId: SOLICITACAO_ID });
+    expect(confirmacao).toEqual({ solicitacaoId: SOLICITACAO_ID, usuariosOnline: [] });
   });
 
   test('duas conexões (doador e solicitante) entram na MESMA sala no servidor', async () => {
@@ -600,5 +602,139 @@ describe('mensagem:marcar_lida', () => {
 
     const evento = await recebida;
     expect(evento).toEqual({ lidoPor: DOADOR_ID });
+  });
+});
+
+// Fase 11: presença online, por conversa. Ver comentário em
+// src/socket/index.js pro porquê de ser por sala (não global) e guardado
+// em memória do processo (não no Redis, diferente do rate limit da fase 10).
+describe('presença online (solicitacao:presenca)', () => {
+  test('quem já está na sala é avisado quando o outro participante entra', async () => {
+    prisma.solicitacaoItem.findUnique.mockResolvedValue(SOLICITACAO_FAKE);
+
+    const socketDoador = await conectar(tokenPara(DOADOR_ID));
+    socketDoador.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
+    await aguardarEvento(socketDoador, 'solicitacao:entrou');
+
+    const avisoDePresenca = aguardarEvento(socketDoador, 'solicitacao:presenca');
+    const socketSolicitante = await conectar(tokenPara(SOLICITANTE_ID));
+    socketSolicitante.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
+
+    const evento = await avisoDePresenca;
+    expect(evento).toEqual({ usuarioId: SOLICITANTE_ID, online: true });
+  });
+
+  test('quem entra recebe, na própria confirmação, a lista de quem já estava online', async () => {
+    prisma.solicitacaoItem.findUnique.mockResolvedValue(SOLICITACAO_FAKE);
+
+    const socketDoador = await conectar(tokenPara(DOADOR_ID));
+    socketDoador.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
+    await aguardarEvento(socketDoador, 'solicitacao:entrou');
+
+    const socketSolicitante = await conectar(tokenPara(SOLICITANTE_ID));
+    socketSolicitante.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
+    const confirmacao = await aguardarEvento(socketSolicitante, 'solicitacao:entrou');
+
+    expect(confirmacao).toEqual({ solicitacaoId: SOLICITACAO_ID, usuariosOnline: [DOADOR_ID] });
+  });
+
+  test('segunda conexão do MESMO usuário na mesma sala não dispara um segundo aviso de presença', async () => {
+    prisma.solicitacaoItem.findUnique.mockResolvedValue(SOLICITACAO_FAKE);
+
+    const socketSolicitante = await conectar(tokenPara(SOLICITANTE_ID));
+    socketSolicitante.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
+    await aguardarEvento(socketSolicitante, 'solicitacao:entrou');
+
+    const avisoOnline = aguardarEvento(socketSolicitante, 'solicitacao:presenca');
+    const socketDoadorAba1 = await conectar(tokenPara(DOADOR_ID));
+    socketDoadorAba1.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
+    await avisoOnline; // consome o único aviso esperado — a partir daqui, mais um seria bug
+
+    let avisosRecebidos = 0;
+    socketSolicitante.on('solicitacao:presenca', () => {
+      avisosRecebidos += 1;
+    });
+
+    // segunda aba do MESMO doador, na MESMA sala
+    const socketDoadorAba2 = await conectar(tokenPara(DOADOR_ID));
+    socketDoadorAba2.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
+    await aguardarEvento(socketDoadorAba2, 'solicitacao:entrou');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(avisosRecebidos).toBe(0);
+  });
+
+  test('ao desconectar a única conexão, a outra parte é avisada que ficou offline', async () => {
+    prisma.solicitacaoItem.findUnique.mockResolvedValue(SOLICITACAO_FAKE);
+
+    const socketSolicitante = await conectar(tokenPara(SOLICITANTE_ID));
+    socketSolicitante.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
+    await aguardarEvento(socketSolicitante, 'solicitacao:entrou');
+
+    const avisoOnline = aguardarEvento(socketSolicitante, 'solicitacao:presenca');
+    const socketDoador = await conectar(tokenPara(DOADOR_ID));
+    socketDoador.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
+    await avisoOnline;
+
+    const avisoOffline = aguardarEvento(socketSolicitante, 'solicitacao:presenca');
+    socketDoador.disconnect();
+
+    const evento = await avisoOffline;
+    expect(evento).toEqual({ usuarioId: DOADOR_ID, online: false });
+  });
+
+  test('desconectar UMA de duas abas do mesmo usuário não derruba a presença — só a última derruba', async () => {
+    prisma.solicitacaoItem.findUnique.mockResolvedValue(SOLICITACAO_FAKE);
+
+    const socketSolicitante = await conectar(tokenPara(SOLICITANTE_ID));
+    socketSolicitante.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
+    await aguardarEvento(socketSolicitante, 'solicitacao:entrou');
+
+    const avisoOnline = aguardarEvento(socketSolicitante, 'solicitacao:presenca');
+    const socketDoadorAba1 = await conectar(tokenPara(DOADOR_ID));
+    socketDoadorAba1.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
+    await avisoOnline;
+
+    const socketDoadorAba2 = await conectar(tokenPara(DOADOR_ID));
+    socketDoadorAba2.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
+    await aguardarEvento(socketDoadorAba2, 'solicitacao:entrou');
+
+    let recebeuOffline = false;
+    socketSolicitante.on('solicitacao:presenca', (evento) => {
+      if (evento.online === false) recebeuOffline = true;
+    });
+
+    socketDoadorAba1.disconnect(); // fecha só UMA das duas abas
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(recebeuOffline).toBe(false);
+
+    const avisoOffline = aguardarEvento(socketSolicitante, 'solicitacao:presenca');
+    socketDoadorAba2.disconnect(); // fecha a ÚLTIMA — agora sim cai
+    const evento = await avisoOffline;
+    expect(evento).toEqual({ usuarioId: DOADOR_ID, online: false });
+  });
+
+  test('mandar mensagem sem nunca ter chamado solicitacao:entrar também conta como presença', async () => {
+    prisma.solicitacaoItem.findUnique.mockResolvedValue(SOLICITACAO_FAKE);
+    prisma.mensagem.create.mockResolvedValue({
+      id: 'msg-presenca-1', solicitacaoId: SOLICITACAO_ID, remetenteId: DOADOR_ID, conteudo: 'oi', anexoUrl: null,
+      anexoTipo: null, lida: false, editadoEm: null, deletadoEm: null, criadoEm: new Date(),
+      remetente: { id: DOADOR_ID, primeiroNome: 'Ana', ultimoNome: 'Silva' },
+    });
+    prisma.notificacao.create.mockResolvedValue({});
+
+    const socketSolicitante = await conectar(tokenPara(SOLICITANTE_ID));
+    socketSolicitante.emit('solicitacao:entrar', { solicitacaoId: SOLICITACAO_ID });
+    await aguardarEvento(socketSolicitante, 'solicitacao:entrou');
+
+    const avisoDePresenca = aguardarEvento(socketSolicitante, 'solicitacao:presenca');
+    const socketDoador = await conectar(tokenPara(DOADOR_ID));
+    // Doador nunca deu 'solicitacao:entrar' — só mandou direto. O join
+    // defensivo dentro de 'mensagem:enviar' (entrarNaSalaComPresenca) é o
+    // mesmo pro dois casos, sem código duplicado.
+    socketDoador.emit('mensagem:enviar', { solicitacaoId: SOLICITACAO_ID, conteudo: 'oi' });
+
+    const evento = await avisoDePresenca;
+    expect(evento).toEqual({ usuarioId: DOADOR_ID, online: true });
   });
 });
