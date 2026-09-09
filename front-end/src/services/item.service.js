@@ -41,8 +41,15 @@ async function enviarImagens(id, arquivos, onProgress) {
   const formData = new FormData();
   Array.from(arquivos).forEach((arquivo) => formData.append('imagens', arquivo));
 
+  // Sem "headers" de Content-Type aqui de propósito — deixa o Axios detectar
+  // que o corpo é um FormData e montar o cabeçalho sozinho, incluindo o
+  // "boundary" (marcador que separa cada arquivo dentro do corpo da
+  // requisição). Definir 'multipart/form-data' manualmente aqui quebra o
+  // upload: o Axios respeita o valor que você mandou (sem o boundary de
+  // verdade), mas o corpo continua usando um boundary real — o multer no
+  // backend não consegue mais separar os arquivos direito, e o resultado é
+  // um arquivo salvo cortado/vazio, mesmo a requisição voltando com sucesso.
   const { data } = await api.post(`/itens/${id}/imagens/upload`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress: (evento) => {
       if (onProgress && evento.total) {
         onProgress(Math.round((evento.loaded * 100) / evento.total));

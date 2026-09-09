@@ -35,12 +35,17 @@ export default function Conversas() {
           : 'Doador',
         status: s.status,
         criadoEm: s.criadoEm,
+        // Fase 8: contador de não lidas já vem pronto do backend nesta mesma
+        // chamada — não precisa de uma requisição por conversa.
+        mensagensNaoLidas: s.mensagensNaoLidas || 0,
       }));
       setConversasSolicitante(listaSolicitante);
 
       // 2. Solicitações recebidas nos meus itens (como doador)
-      const resItens = await itemService.meus({ tamanho: 50 });
-      const meusItens = resItens.itens || [];
+      // NOTA: corrigido aqui — itemService.meus(...) não existe (bug
+      // preexistente, não relacionado à fase 8); o método certo é
+      // meusItens(), sem parâmetro, e já devolve o array direto.
+      const meusItens = await itemService.meusItens();
       const chamadasSolicitacoes = meusItens.map((item) =>
         solicitacaoService.listarPorItem(item.id, { tamanho: 50 }).catch(() => ({ solicitacoes: [] }))
       );
@@ -59,11 +64,18 @@ export default function Conversas() {
               : 'Solicitante',
             status: s.status,
             criadoEm: s.criadoEm,
+            mensagensNaoLidas: s.mensagensNaoLidas || 0,
           });
         });
       });
       setConversasDoador(listaDoador);
     } catch (err) {
+      // Sem isso, um erro que não seja de rede (ex: um bug de JS no meio do
+      // processamento da resposta) fica só com a mensagem genérica na tela,
+      // sem nenhum rastro em lugar nenhum — nem Network, nem Console. Fica
+      // impossível de diagnosticar de fora. Loga o erro cru pra aparecer no
+      // Console do navegador (F12), além da mensagem amigável na tela.
+      console.error('[Conversas] Falha ao carregar conversas:', err);
       setErro(mensagemDeErro(err));
     } finally {
       setCarregando(false);
@@ -82,6 +94,22 @@ export default function Conversas() {
   if (aba === 'solicitante') exibidas = conversasSolicitante;
   if (aba === 'doador') exibidas = conversasDoador;
 
+  // Fase 8: soma de não lidas por aba, pra dar um sinal já na aba mesmo sem
+  // abrir a lista (mesma lógica de badge de notificação não lida do resto do app).
+  const somarNaoLidas = (lista) => lista.reduce((total, c) => total + (c.mensagensNaoLidas || 0), 0);
+  const naoLidasTotais = somarNaoLidas(todas);
+  const naoLidasSolicitante = somarNaoLidas(conversasSolicitante);
+  const naoLidasDoador = somarNaoLidas(conversasDoador);
+
+  function badgeNaoLidas(quantidade) {
+    if (!quantidade) return null;
+    return (
+      <span className="badge rounded-pill ms-1" style={{ backgroundColor: 'var(--mc-tijolo-600)' }}>
+        {quantidade}
+      </span>
+    );
+  }
+
   return (
     <div className="mc-fade-in">
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -95,16 +123,19 @@ export default function Conversas() {
         <Nav.Item>
           <Nav.Link eventKey="todas">
             Todas <span className="badge bg-secondary ms-1">{todas.length}</span>
+            {badgeNaoLidas(naoLidasTotais)}
           </Nav.Link>
         </Nav.Item>
         <Nav.Item>
           <Nav.Link eventKey="solicitante">
             Como solicitante <span className="badge bg-secondary ms-1">{conversasSolicitante.length}</span>
+            {badgeNaoLidas(naoLidasSolicitante)}
           </Nav.Link>
         </Nav.Item>
         <Nav.Item>
           <Nav.Link eventKey="doador">
             Como doador <span className="badge bg-secondary ms-1">{conversasDoador.length}</span>
+            {badgeNaoLidas(naoLidasDoador)}
           </Nav.Link>
         </Nav.Item>
       </Nav>
@@ -140,7 +171,7 @@ export default function Conversas() {
             </thead>
             <tbody>
               {exibidas.map((c) => (
-                <tr key={`${c.papel}-${c.id}`}>
+                <tr key={`${c.papel}-${c.id}`} className={c.mensagensNaoLidas ? 'fw-medium' : undefined}>
                   <td>
                     {c.item?.imagens?.[0] ? (
                       <img
@@ -165,7 +196,10 @@ export default function Conversas() {
                       {c.item?.titulo}
                     </Link>
                   </td>
-                  <td className="fw-medium">{c.outroNome}</td>
+                  <td className="fw-medium">
+                    {c.outroNome}
+                    {badgeNaoLidas(c.mensagensNaoLidas)}
+                  </td>
                   <td>
                     <span className="badge bg-light text-dark border">
                       {c.papel === 'doador' ? 'Doador do item' : 'Solicitante'}

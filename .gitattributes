@@ -1,2 +1,3 @@
 # Mantém o diff consistente entre Windows, CI e Linux.
 * text=auto eol=lf
+.env

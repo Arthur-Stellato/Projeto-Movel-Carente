@@ -41,14 +41,14 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       CORS_ORIGIN: http://localhost:8080
-      FRONTEND_URL: http://localhost:8080
+      FRONTEND_URL: http://localhost:5173
       COOKIE_CROSS_SITE: "false"
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_SECURE: ${SMTP_SECURE:-false}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-MóvelCarente <nao-responda@movelcarente.local>}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM:-"MóvelCarente <nao-responda@movelcarente.local>"}
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,12 +75,12 @@ services:
       DATABASE_URL: postgresql://movelcarente:${POSTGRES_PASSWORD:-movelcarente}@postgres:5432/movelcarente?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_SECURE: ${SMTP_SECURE:-false}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-MóvelCarente <nao-responda@movelcarente.local>}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM:-"MóvelCarente <nao-responda@movelcarente.local>"}
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,8 +94,6 @@ services:
     build:
       context: ./front-end
       args:
-        # A API também é exposta em localhost:3000, permitindo que o Socket.IO
-        # e as chamadas HTTP compartilhem a mesma configuração já usada pelo app.
         VITE_API_URL: http://localhost:3000
     depends_on:
       api:
