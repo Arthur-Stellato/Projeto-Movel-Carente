@@ -6,13 +6,25 @@ import Spinner from 'react-bootstrap/Spinner';
 import Alert from 'react-bootstrap/Alert';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
+import ButtonGroup from 'react-bootstrap/ButtonGroup';
+import ToggleButton from 'react-bootstrap/ToggleButton';
 import AuthLayout from './AuthLayout';
 import VerificarEmailForm from '../../components/auth/VerificarEmailForm';
 import { useAuth } from '../../context/AuthContext';
 import { mensagemDeErro } from '../../services/api';
 import { GENEROS } from '../../constants';
+import { formatarCpf, formatarCnpj } from '../../lib/formatadores';
 
-const VAZIO = { primeiroNome: '', ultimoNome: '', email: '', cpf: '', telefone: '', genero: 'prefiro_nao_dizer', senha: '' };
+const VAZIO = {
+  tipoDoc: 'cpf', // 'cpf' | 'cnpj'
+  documento: '',
+  primeiroNome: '',
+  ultimoNome: '',
+  email: '',
+  telefone: '',
+  genero: 'prefiro_nao_dizer',
+  senha: '',
+};
 
 export default function Registro() {
   const { registrar, login } = useAuth();
@@ -27,12 +39,43 @@ export default function Registro() {
     setForm((atual) => ({ ...atual, [campo]: valor }));
   }
 
+  function handleDocumentoChange(valor) {
+    if (form.tipoDoc === 'cpf') {
+      atualizarCampo('documento', formatarCpf(valor));
+    } else {
+      atualizarCampo('documento', formatarCnpj(valor));
+    }
+  }
+
+  function alternarTipoDoc(novoTipo) {
+    setForm((atual) => ({
+      ...atual,
+      tipoDoc: novoTipo,
+      documento: '',
+    }));
+  }
+
   async function enviar(evento) {
     evento.preventDefault();
     setErro('');
     setEnviando(true);
     try {
-      await registrar({ ...form, telefone: form.telefone || undefined });
+      const payload = {
+        primeiroNome: form.primeiroNome,
+        ultimoNome: form.ultimoNome,
+        email: form.email,
+        telefone: form.telefone || undefined,
+        genero: form.genero,
+        senha: form.senha,
+      };
+
+      if (form.tipoDoc === 'cpf') {
+        payload.cpf = form.documento;
+      } else {
+        payload.cnpj = form.documento;
+      }
+
+      await registrar(payload);
       setSucesso(true);
     } catch (err) {
       setErro(mensagemDeErro(err));
@@ -41,24 +84,19 @@ export default function Registro() {
     }
   }
 
-  // Depois de verificar o código, já aproveitamos a senha que a pessoa acabou
-  // de digitar nesta mesma tela pra logar direto — sem isso ela verificaria o
-  // email e ainda precisaria voltar pro login e digitar tudo de novo.
   async function aoVerificarComSucesso() {
     setEntrandoAutomaticamente(true);
     try {
       await login(form.email, form.senha);
       navigate('/painel', { replace: true });
     } catch {
-      // Se por algum motivo o login automático falhar, não travamos a pessoa
-      // aqui — ela já está verificada, só manda pro login pra entrar na mão.
       navigate('/entrar', { replace: true });
     }
   }
 
   if (sucesso) {
     return (
-      <AuthLayout titulo="Quase lá!" subtitulo={`Enviamos um código de verificação para ${form.email}.`}>
+      <AuthLayout titulo="Quase lá!" subtitulo={`Enviamos o link e o código de verificação para ${form.email}.`}>
         {entrandoAutomaticamente ? (
           <div className="text-center py-3">
             <Spinner animation="border" style={{ color: 'var(--mc-verde-800)' }} />
@@ -74,15 +112,53 @@ export default function Registro() {
   return (
     <AuthLayout titulo="Criar conta" subtitulo="Leva menos de um minuto.">
       {erro && <Alert variant="danger">{erro}</Alert>}
+
+      <div className="mb-3 text-center">
+        <ButtonGroup className="w-100">
+          <ToggleButton
+            id="radio-cpf"
+            type="radio"
+            variant={form.tipoDoc === 'cpf' ? 'primary' : 'outline-secondary'}
+            name="tipoDoc"
+            value="cpf"
+            checked={form.tipoDoc === 'cpf'}
+            onChange={() => alternarTipoDoc('cpf')}
+          >
+            Pessoa Física (CPF)
+          </ToggleButton>
+          <ToggleButton
+            id="radio-cnpj"
+            type="radio"
+            variant={form.tipoDoc === 'cnpj' ? 'primary' : 'outline-secondary'}
+            name="tipoDoc"
+            value="cnpj"
+            checked={form.tipoDoc === 'cnpj'}
+            onChange={() => alternarTipoDoc('cnpj')}
+          >
+            Pessoa Jurídica (CNPJ)
+          </ToggleButton>
+        </ButtonGroup>
+      </div>
+
       <Form onSubmit={enviar}>
         <Row>
           <Col md={6} className="mb-3">
-            <Form.Label>Primeiro nome</Form.Label>
-            <Form.Control value={form.primeiroNome} maxLength={100} onChange={(e) => atualizarCampo('primeiroNome', e.target.value)} required />
+            <Form.Label>{form.tipoDoc === 'cnpj' ? 'Razão social / Nome' : 'Primeiro nome'}</Form.Label>
+            <Form.Control
+              value={form.primeiroNome}
+              maxLength={100}
+              onChange={(e) => atualizarCampo('primeiroNome', e.target.value)}
+              required
+            />
           </Col>
           <Col md={6} className="mb-3">
-            <Form.Label>Último nome</Form.Label>
-            <Form.Control value={form.ultimoNome} maxLength={100} onChange={(e) => atualizarCampo('ultimoNome', e.target.value)} required />
+            <Form.Label>{form.tipoDoc === 'cnpj' ? 'Nome fantasia / Responsável' : 'Último nome'}</Form.Label>
+            <Form.Control
+              value={form.ultimoNome}
+              maxLength={100}
+              onChange={(e) => atualizarCampo('ultimoNome', e.target.value)}
+              required
+            />
           </Col>
         </Row>
         <Form.Group className="mb-3">
@@ -91,24 +167,35 @@ export default function Registro() {
         </Form.Group>
         <Row>
           <Col md={6} className="mb-3">
-            <Form.Label>CPF</Form.Label>
-            <Form.Control value={form.cpf} placeholder="000.000.000-00" onChange={(e) => atualizarCampo('cpf', e.target.value)} required />
+            <Form.Label>{form.tipoDoc === 'cpf' ? 'CPF' : 'CNPJ (Alfanumérico)'}</Form.Label>
+            <Form.Control
+              value={form.documento}
+              placeholder={form.tipoDoc === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00'}
+              onChange={(e) => handleDocumentoChange(e.target.value)}
+              required
+            />
           </Col>
           <Col md={6} className="mb-3">
             <Form.Label>Telefone (opcional)</Form.Label>
-            <Form.Control value={form.telefone} placeholder="(00) 00000-0000" onChange={(e) => atualizarCampo('telefone', e.target.value)} />
+            <Form.Control
+              value={form.telefone}
+              placeholder="(00) 00000-0000"
+              onChange={(e) => atualizarCampo('telefone', e.target.value)}
+            />
           </Col>
         </Row>
-        <Form.Group className="mb-3">
-          <Form.Label>Gênero</Form.Label>
-          <Form.Select value={form.genero} onChange={(e) => atualizarCampo('genero', e.target.value)}>
-            {GENEROS.map((g) => (
-              <option key={g.valor} value={g.valor}>
-                {g.rotulo}
-              </option>
-            ))}
-          </Form.Select>
-        </Form.Group>
+        {form.tipoDoc === 'cpf' && (
+          <Form.Group className="mb-3">
+            <Form.Label>Gênero</Form.Label>
+            <Form.Select value={form.genero} onChange={(e) => atualizarCampo('genero', e.target.value)}>
+              {GENEROS.map((g) => (
+                <option key={g.valor} value={g.valor}>
+                  {g.rotulo}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+        )}
         <Form.Group className="mb-3">
           <Form.Label>Senha</Form.Label>
           <Form.Control type="password" value={form.senha} onChange={(e) => atualizarCampo('senha', e.target.value)} required />

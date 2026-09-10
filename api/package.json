@@ -18,6 +18,7 @@
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "6.19.3",
+    "@supabase/server": "^1.6.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.81.2",
     "cookie-parser": "^1.4.7",
@@ -43,7 +44,7 @@
   "devDependencies": {
     "jest": "^29.7.0",
     "nodemon": "^3.1.14",
-    "prisma": "6.19.3",
+    "prisma": "^6.19.3",
     "socket.io-client": "^4.8.3",
     "supertest": "^7.0.0"
   },

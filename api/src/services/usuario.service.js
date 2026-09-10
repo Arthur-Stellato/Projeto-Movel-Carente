@@ -2,7 +2,7 @@ const bcrypt = require('bcrypt');
 const prisma = require('../lib/prisma');
 const { sanitizarUsuario } = require('../lib/sanitizar');
 const { registrarAuditoria } = require('../lib/auditoria');
-const { normalizarEmail, apenasDigitos } = require('../lib/validadores');
+const { normalizarEmail, apenasDigitos, normalizarCnpj } = require('../lib/validadores');
 const { normalizarPaginacao } = require('../lib/paginacao');
 const logger = require('../lib/logger');
 
@@ -24,10 +24,10 @@ class ErroUsuario extends ErroDominio {}
 // na rota (/auth/registro) — o que sobra aqui é a regra que só o banco pode
 // responder: email ou documento já cadastrado.
 async function registrar({ email, cpf, cnpj, senha, primeiroNome, ultimoNome, telefone, genero }) {
-  const cpfLimpo = apenasDigitos(cpf);
-  const cnpjLimpo = apenasDigitos(cnpj);
+  const cpfLimpo = cpf ? apenasDigitos(cpf) : null;
+  const cnpjLimpo = cnpj ? normalizarCnpj(cnpj) : null;
   const emailNormalizado = normalizarEmail(email);
-  const documento = cpfLimpo ? { cpf: cpfLimpo } : { cnpj: cnpjLimpo };
+  const documento = cpfLimpo ? { cpf: cpfLimpo } : (cnpjLimpo ? { cnpj: cnpjLimpo } : {});
 
   const jaExiste = await prisma.usuario.findFirst({
     where: { OR: [{ email: emailNormalizado }, documento] },

@@ -1,5 +1,5 @@
 const Joi = require('joi');
-const { validarCpf, validarCnpj, validarCep, validarForcaSenha, ehEmailDescartavel, validarTelefone, UFS_VALIDAS, GENEROS_VALIDOS } = require('../lib/validadores');
+const { validarCpf, validarCnpj, normalizarCnpj, validarCep, validarForcaSenha, ehEmailDescartavel, validarTelefone, UFS_VALIDAS, GENEROS_VALIDOS } = require('../lib/validadores');
 
 // ============================================================
 // Blocos reutilizáveis de Joi — cada um encapsula uma regra de formato usada
@@ -28,9 +28,9 @@ const cpf = Joi.string()
 
 const cnpj = Joi.string()
   .custom((valor, helpers) => {
-    const digitos = String(valor || '').replace(/\D/g, '');
-    if (!validarCnpj(digitos)) return helpers.error('any.invalid');
-    return digitos;
+    const limpo = normalizarCnpj(valor);
+    if (!validarCnpj(limpo)) return helpers.error('any.invalid');
+    return limpo;
   })
   .messages({ 'any.invalid': 'CNPJ inválido' });
 
