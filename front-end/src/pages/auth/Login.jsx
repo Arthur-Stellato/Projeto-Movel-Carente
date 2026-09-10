@@ -84,6 +84,9 @@ export default function Login() {
         <Form.Group className="mb-3">
           <Form.Label>Senha</Form.Label>
           <Form.Control type="password" value={senha} onChange={(e) => setSenha(e.target.value)} required />
+          <div className="text-end mt-1">
+            <Link to="/esqueci-senha" className="small">Esqueceu sua senha?</Link>
+          </div>
         </Form.Group>
         <Button type="submit" variant="primary" className="w-100 mt-2" disabled={entrando}>
           {entrando && <Spinner animation="border" size="sm" className="me-2" />}

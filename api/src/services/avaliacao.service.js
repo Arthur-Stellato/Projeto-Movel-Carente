@@ -101,6 +101,9 @@ async function listarRecebidas(usuarioId, { pagina = 1, tamanho = PAGINA_TAMANHO
 
   const recebidas = await prisma.avaliacao.findMany({
     where: { avaliadoId: usuarioId },
+    // Sem isso, o front só teria o avaliadorId cru pra mostrar — inclui o
+    // nome pra dar pra exibir "Fulano te avaliou", não só "alguém".
+    include: { avaliador: { select: { id: true, primeiroNome: true, ultimoNome: true } } },
     orderBy: { criadoEm: 'desc' },
   });
 
