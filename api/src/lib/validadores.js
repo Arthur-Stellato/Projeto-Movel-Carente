@@ -29,25 +29,41 @@ function validarCpf(cpf) {
   return true;
 }
 
-// Valida CNPJ pelo algoritmo oficial dos dois dígitos verificadores. Assim
-// como o CPF, isso confirma a consistência matemática, não a existência do
-// cadastro na Receita Federal.
-function validarCnpj(cnpj) {
-  const digitos = String(cnpj || '').replace(/\D/g, '');
+function normalizarCnpj(cnpj) {
+  return String(cnpj || '').replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+}
 
-  if (digitos.length !== 14 || /^(\d)\1{13}$/.test(digitos)) return false;
+// Valida CNPJ pelo algoritmo oficial da Receita Federal, com suporte ao novo
+// padrão de CNPJ Alfanumérico (IN RFB 2.229/2024).
+// As primeiras 12 posições são alfanuméricas (0-9, A-Z) e os 2 dígitos
+// verificadores finais são numéricos (0-9). O valor de cada caractere no cálculo
+// ponderado é seu código ASCII menos 48 ('0'=0 .. '9'=9, 'A'=17 .. 'Z'=42).
+function validarCnpj(cnpj) {
+  const limpo = normalizarCnpj(cnpj);
+
+  if (limpo.length !== 14) return false;
+
+  // 12 alfanuméricos + 2 dígitos verificadores numéricos
+  if (!/^[0-9A-Z]{12}[0-9]{2}$/.test(limpo)) return false;
+
+  // Sequências com 14 caracteres idênticos não são CNPJs válidos
+  if (/^([0-9A-Z])\1{13}$/.test(limpo)) return false;
 
   const calcularDigitoVerificador = (pesos) => {
-    const soma = pesos.reduce((total, peso, indice) => total + (Number(digitos[indice]) * peso), 0);
+    let soma = 0;
+    for (let i = 0; i < pesos.length; i++) {
+      const valor = limpo.charCodeAt(i) - 48;
+      soma += valor * pesos[i];
+    }
     const resto = soma % 11;
     return resto < 2 ? 0 : 11 - resto;
   };
 
   const primeiroDigito = calcularDigitoVerificador([5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
-  if (primeiroDigito !== Number(digitos[12])) return false;
+  if (primeiroDigito !== parseInt(limpo[12], 10)) return false;
 
   const segundoDigito = calcularDigitoVerificador([6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
-  return segundoDigito === Number(digitos[13]);
+  return segundoDigito === parseInt(limpo[13], 10);
 }
 
 // Checagem pragmática de formato — não tenta cobrir toda a complexidade do RFC 5322
@@ -204,6 +220,7 @@ module.exports = {
   apenasDigitos,
   validarCpf,
   validarCnpj,
+  normalizarCnpj,
   validarTelefone,
   validarCep,
   validarUuid,
