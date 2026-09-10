@@ -67,9 +67,14 @@ export default function Perfil() {
           <h2 className="mb-1">Meu perfil</h2>
           <p className="text-secondary mb-0">Seus dados pessoais e de acesso.</p>
         </div>
-        <Button as={Link} to="/painel/perfil/enderecos" variant="outline-primary">
-          <i className="bi bi-geo-alt me-1" /> Meus endereços
-        </Button>
+        <div className="d-flex gap-2">
+          <Button as={Link} to="/painel/perfil/avaliacoes" variant="outline-secondary">
+            <i className="bi bi-star me-1" /> Minhas avaliações
+          </Button>
+          <Button as={Link} to="/painel/perfil/enderecos" variant="outline-primary">
+            <i className="bi bi-geo-alt me-1" /> Meus endereços
+          </Button>
+        </div>
       </div>
 
       <Card className="mb-4">

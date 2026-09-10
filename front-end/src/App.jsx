@@ -8,6 +8,8 @@ import Home from './pages/Home';
 import Login from './pages/auth/Login';
 import Registro from './pages/auth/Registro';
 import VerificarEmail from './pages/auth/VerificarEmail';
+import EsqueciSenha from './pages/auth/EsqueciSenha';
+import RedefinirSenha from './pages/auth/RedefinirSenha';
 import ItensListagem from './pages/itens/ItensListagem';
 import ItemDetalhe from './pages/itens/ItemDetalhe';
 import Dashboard from './pages/Dashboard';
@@ -20,6 +22,7 @@ import Favoritos from './pages/Favoritos';
 import Notificacoes from './pages/Notificacoes';
 import Perfil from './pages/perfil/Perfil';
 import Enderecos from './pages/perfil/Enderecos';
+import MinhasAvaliacoes from './pages/perfil/MinhasAvaliacoes';
 import MinhasDenuncias from './pages/denuncias/MinhasDenuncias';
 import CategoriasAdmin from './pages/categorias/CategoriasAdmin';
 import DenunciasAdmin from './pages/denuncias/DenunciasAdmin';
@@ -40,6 +43,8 @@ export default function App() {
       <Route path="/entrar" element={<Login />} />
       <Route path="/registrar" element={<Registro />} />
       <Route path="/verificar-email" element={<VerificarEmail />} />
+      <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+      <Route path="/redefinir-senha" element={<RedefinirSenha />} />
 
       {/* Área logada — exige sessão ativa */}
       <Route element={<ProtectedRoute />}>
@@ -55,6 +60,7 @@ export default function App() {
           <Route path="/painel/denuncias" element={<MinhasDenuncias />} />
           <Route path="/painel/perfil" element={<Perfil />} />
           <Route path="/painel/perfil/enderecos" element={<Enderecos />} />
+          <Route path="/painel/perfil/avaliacoes" element={<MinhasAvaliacoes />} />
 
           {/* Somente admin */}
           <Route element={<AdminRoute />}>

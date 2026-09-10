@@ -165,6 +165,18 @@ describe('listarPorSolicitacao', () => {
 });
 
 describe('listarRecebidas', () => {
+  test('inclui o nome de quem avaliou (não só o avaliadorId cru)', async () => {
+    prisma.avaliacao.findMany.mockResolvedValueOnce([]);
+
+    await avaliacaoService.listarRecebidas('usuario-1', {});
+
+    expect(prisma.avaliacao.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: { avaliador: { select: { id: true, primeiroNome: true, ultimoNome: true } } },
+      })
+    );
+  });
+
   test('retorna vazio quando o usuário não recebeu nenhuma avaliação', async () => {
     prisma.avaliacao.findMany.mockResolvedValueOnce([]);
 

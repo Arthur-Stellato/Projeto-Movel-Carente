@@ -13,11 +13,13 @@ import Spinner from 'react-bootstrap/Spinner';
 import { itemService } from '../../services/item.service';
 import { solicitacaoService } from '../../services/solicitacao.service';
 import { favoritoService } from '../../services/favorito.service';
+import { avaliacaoService } from '../../services/avaliacao.service';
 import { resolverUrlImagem, mensagemDeErro } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import StatusBadge from '../../components/common/StatusBadge';
+import EstrelasRating from '../../components/common/EstrelasRating';
 import FavoritoButton from '../../components/itens/FavoritoButton';
 import DenunciarModal from '../../components/itens/DenunciarModal';
 import ImagemUploader from '../../components/itens/ImagemUploader';
@@ -34,6 +36,7 @@ export default function ItemDetalhe() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [favoritado, setFavoritado] = useState(false);
+  const [reputacaoDoador, setReputacaoDoador] = useState(null);
 
   const [modalSolicitar, setModalSolicitar] = useState(false);
   const [mensagemSolicitacao, setMensagemSolicitacao] = useState('');
@@ -54,6 +57,17 @@ export default function ItemDetalhe() {
           setFavoritado(await favoritoService.verificar(id));
         } catch {
           // se falhar, mantém como não-favoritado — não é crítico pra exibição
+        }
+      }
+      if (dados.doador?.id) {
+        try {
+          // tamanho=1 de propósito — aqui só interessa o resumo (media/total),
+          // não a lista de avaliações em si.
+          const { media, total } = await avaliacaoService.recebidasPorUsuario(dados.doador.id, { tamanho: 1 });
+          setReputacaoDoador({ media, total });
+        } catch {
+          // reputação é complementar — não impede a página de carregar se falhar
+          setReputacaoDoador(null);
         }
       }
     } catch (err) {
@@ -164,6 +178,9 @@ export default function ItemDetalhe() {
           <div className="card p-3 mb-3">
             <strong className="mb-2 d-block">Doador</strong>
             <div>{item.doador?.primeiroNome} {item.doador?.ultimoNome}</div>
+            <div className="mt-1">
+              <EstrelasRating media={reputacaoDoador?.media ?? null} total={reputacaoDoador?.total ?? 0} />
+            </div>
             {item.doador?.telefone ? (
               <div className="text-secondary small mt-1">
                 <i className="bi bi-telephone me-1" /> {item.doador.telefone}
