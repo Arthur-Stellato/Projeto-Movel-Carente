@@ -6,11 +6,13 @@ import Alert from 'react-bootstrap/Alert';
 import Spinner from 'react-bootstrap/Spinner';
 import { itemService } from '../../services/item.service';
 import { solicitacaoService } from '../../services/solicitacao.service';
+import { avaliacaoService } from '../../services/avaliacao.service';
 import { mensagemDeErro } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import StatusBadge from '../../components/common/StatusBadge';
+import EstrelasRating from '../../components/common/EstrelasRating';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import AvaliacaoModal from '../../components/solicitacoes/AvaliacaoModal';
 import { STATUS_SOLICITACAO, STATUS_ITEM } from '../../constants';
@@ -22,6 +24,7 @@ export default function SolicitacoesRecebidas() {
 
   const [item, setItem] = useState(null);
   const [solicitacoes, setSolicitacoes] = useState([]);
+  const [reputacoes, setReputacoes] = useState({});
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [processandoId, setProcessandoId] = useState(null);
@@ -38,6 +41,23 @@ export default function SolicitacoesRecebidas() {
       ]);
       setItem(itemData);
       setSolicitacoes(solicitacoesData.solicitacoes);
+
+      // Reputação de cada solicitante — busca em paralelo, uma por pessoa
+      // (não por solicitação, evita repetir a mesma consulta se a mesma
+      // pessoa aparecer mais de uma vez). best-effort: se uma falhar, essa
+      // pessoa fica sem estrelas em vez de travar a tela toda.
+      const idsUnicos = [...new Set(solicitacoesData.solicitacoes.map((s) => s.solicitante?.id).filter(Boolean))];
+      const pares = await Promise.all(
+        idsUnicos.map(async (id) => {
+          try {
+            const { media, total } = await avaliacaoService.recebidasPorUsuario(id, { tamanho: 1 });
+            return [id, { media, total }];
+          } catch {
+            return [id, null];
+          }
+        })
+      );
+      setReputacoes(Object.fromEntries(pares));
     } catch (err) {
       setErro(mensagemDeErro(err));
     } finally {
@@ -98,7 +118,12 @@ export default function SolicitacoesRecebidas() {
                 return (
                   <tr key={s.id}>
                     <td>
-                      {s.solicitante?.primeiroNome} {s.solicitante?.ultimoNome}
+                      <div>{s.solicitante?.primeiroNome} {s.solicitante?.ultimoNome}</div>
+                      <EstrelasRating
+                        media={reputacoes[s.solicitante?.id]?.media ?? null}
+                        total={reputacoes[s.solicitante?.id]?.total ?? 0}
+                        tamanho="0.8rem"
+                      />
                     </td>
                     <td>
                       <StatusBadge mapa={STATUS_SOLICITACAO} valor={s.status} />
