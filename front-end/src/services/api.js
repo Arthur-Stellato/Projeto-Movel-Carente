@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base URL do backend real (ver ../../api). Configurável via VITE_API_URL (.env).
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+export const API_URL = import.meta.env.VITE_API_URL;
 
 // Token de acesso mantido só em memória (nunca em localStorage): é curto (15min)
 // e, se um XSS conseguisse ler localStorage, pegaria o token de qualquer sessão
