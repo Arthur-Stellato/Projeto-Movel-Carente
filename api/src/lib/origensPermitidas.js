@@ -1,5 +1,5 @@
 function origensPermitidas() {
-  const envOrigins = process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:5173';
+  const envOrigins = process.env.CORS_ORIGIN;
   return envOrigins
     .split(',')
     .map((origem) => origem.trim())
