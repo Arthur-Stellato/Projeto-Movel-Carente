@@ -23,6 +23,7 @@ export default function ItensListagem() {
   const { logado } = useAuth();
   const [categorias, setCategorias] = useState([]);
   const [buscaTexto, setBuscaTexto] = useState('');
+  const [cidadeTexto, setCidadeTexto] = useState('');
   const [filtros, setFiltros] = useState({ categoriaId: '', cidade: '', estado: '', busca: '' });
   const [geo, setGeo] = useState(null); // { lat, lng, raioKm }
   const [buscandoLocalizacao, setBuscandoLocalizacao] = useState(false);
@@ -57,6 +58,16 @@ export default function ItensListagem() {
     return () => clearTimeout(temporizador);
   }, [buscaTexto]);
 
+  // Mesma lógica pro campo de cidade — 300ms, um pouco mais curto que o de
+  // busca textual porque nomes de cidade tendem a ser mais curtos de digitar.
+  useEffect(() => {
+    const temporizador = setTimeout(() => {
+      setFiltros((atual) => ({ ...atual, cidade: cidadeTexto }));
+      setPagina(1);
+    }, 300);
+    return () => clearTimeout(temporizador);
+  }, [cidadeTexto]);
+
   useEffect(() => {
     let cancelado = false;
     setCarregando(true);
@@ -76,7 +87,13 @@ export default function ItensListagem() {
         if (!cancelado) setResultado(data);
       })
       .catch((err) => {
-        if (!cancelado) setErro(mensagemDeErro(err));
+        if (!cancelado) {
+          // Mesma lógica do fix em Conversas.jsx: sem isso, não tem como saber
+          // se isso é erro de rede, validação rejeitada pelo Joi, ou uma
+          // exceção de JS — a tela mostra só a mensagem genérica de sempre.
+          console.error('[ItensListagem] Falha ao buscar itens:', err);
+          setErro(mensagemDeErro(err));
+        }
       })
       .finally(() => {
         if (!cancelado) setCarregando(false);
@@ -103,11 +120,24 @@ export default function ItensListagem() {
         setPagina(1);
         setBuscandoLocalizacao(false);
       },
-      () => {
-        setErro('Não foi possível obter sua localização. Verifique a permissão do navegador.');
+      (erroGeo) => {
+        // GeolocationPositionError.code: 1 = permissão negada, 2 = posição
+        // indisponível, 3 = tempo esgotado — vale diferenciar a mensagem do
+        // caso mais comum (usuário clicou em "bloquear") dos demais.
+        const mensagem =
+          erroGeo.code === 1
+            ? 'Permissão de localização negada. Você pode habilitar isso nas configurações do navegador.'
+            : 'Não foi possível obter sua localização no momento. Tente novamente.';
+        setErro(mensagem);
         setBuscandoLocalizacao(false);
-      }
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
     );
+  }
+
+  function atualizarRaio(raioKm) {
+    setGeo((atual) => (atual ? { ...atual, raioKm: Number(raioKm) } : atual));
+    setPagina(1);
   }
 
   function marcarFavorito(itemId, valor) {
@@ -148,7 +178,7 @@ export default function ItensListagem() {
         </Col>
         <Col md={2}>
           <Form.Label className="small">Cidade</Form.Label>
-          <Form.Control value={filtros.cidade} onChange={(e) => atualizarFiltro('cidade', e.target.value)} />
+          <Form.Control value={cidadeTexto} onChange={(e) => setCidadeTexto(e.target.value)} />
         </Col>
         <Col md={1}>
           <Form.Label className="small">UF</Form.Label>
@@ -168,7 +198,24 @@ export default function ItensListagem() {
           </Button>
         </Col>
       </Row>
-      {geo && <p className="small text-secondary">Mostrando itens num raio de {geo.raioKm}km da sua localização.</p>}
+      {geo && (
+        <div className="d-flex align-items-center gap-2 mb-3">
+          <span className="small text-secondary">Raio de busca:</span>
+          <Form.Select
+            size="sm"
+            style={{ width: 'auto' }}
+            value={geo.raioKm}
+            onChange={(e) => atualizarRaio(e.target.value)}
+          >
+            <option value={5}>5 km</option>
+            <option value={10}>10 km</option>
+            <option value={25}>25 km</option>
+            <option value={50}>50 km</option>
+            <option value={100}>100 km</option>
+          </Form.Select>
+          <span className="small text-secondary">da sua localização atual.</span>
+        </div>
+      )}
 
       {erro && <Alert variant="danger">{erro}</Alert>}
 

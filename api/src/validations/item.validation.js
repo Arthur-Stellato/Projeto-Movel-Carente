@@ -67,7 +67,12 @@ const atualizar = Joi.object({
   descricao: Joi.string().trim().min(1),
   categoriaId: uuid,
   condicao,
-  cidade: Joi.string().trim().max(100).messages({
+  // .min(1) igual ao schema de "criar" — sem isso, cidade: "" passava limpo
+  // (vazio não é "ausente" pro Joi, então só rejeitaria se o campo nem
+  // viesse na requisição). Foi assim que um item ficou com cidade vazia e
+  // caiu fora da busca por raio sem nenhum erro visível na hora de editar.
+  cidade: Joi.string().trim().min(1).max(100).messages({
+    'string.empty': 'A cidade não pode ficar vazia',
     'string.max': 'A cidade deve ter no máximo 100 caracteres',
   }),
   estado: uf,

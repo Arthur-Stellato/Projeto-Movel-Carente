@@ -54,6 +54,44 @@ describe('listar', () => {
     expect(resultado.itens).toHaveLength(1);
     expect(resultado.total).toBe(1);
   });
+
+  // Sem busca por raio (sem lat/lng) — esse caminho usa o query builder do
+  // Prisma, que não tem como chamar unaccent() dentro de um where. Por isso
+  // a etapa extra: uma consulta crua só pra achar os ids compatíveis, e o
+  // resto (paginação, include, contagem) continua no Prisma normal.
+  test('filtro de cidade: busca ids com unaccent() antes de aplicar o where do Prisma', async () => {
+    prisma.$queryRaw.mockResolvedValue([{ id: 'item-1' }, { id: 'item-2' }]);
+    prisma.$transaction.mockResolvedValue([[{ id: 'item-1' }, { id: 'item-2' }], 2]);
+
+    await itemService.listar({ cidade: 'cornelio' });
+
+    expect(prisma.$queryRaw).toHaveBeenCalled();
+    // O que a consulta crua devolveu (ids) precisa virar o id.in do Prisma —
+    // é essa ponte entre as duas etapas que garante o filtro de verdade.
+    expect(prisma.itemDoacao.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: { in: ['item-1', 'item-2'] } }),
+      })
+    );
+  });
+
+  test('filtro de cidade sem nenhum item compatível: id.in vazio, não quebra (lista vazia)', async () => {
+    prisma.$queryRaw.mockResolvedValue([]);
+    prisma.$transaction.mockResolvedValue([[], 0]);
+
+    const resultado = await itemService.listar({ cidade: 'cidade-que-nao-existe' });
+
+    expect(resultado.itens).toEqual([]);
+    expect(resultado.total).toBe(0);
+  });
+
+  test('sem filtro de cidade: nem chega a chamar $queryRaw', async () => {
+    prisma.$transaction.mockResolvedValue([[], 0]);
+
+    await itemService.listar({ categoriaId: 'cat-1' });
+
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
 });
 
 describe('buscarPorId', () => {
@@ -450,9 +488,9 @@ describe('listar — busca por raio (PostGIS)', () => {
 
     const [sqlSelect, ...valoresSelect] = prisma.$queryRawUnsafe.mock.calls[0];
     expect(sqlSelect).toContain('categoria_id = $2');
-    expect(sqlSelect).toContain('cidade ILIKE $3');
+    expect(sqlSelect).toContain('unaccent(cidade) ILIKE unaccent($3)');
     expect(sqlSelect).toContain('estado::text = $4');
     expect(sqlSelect).toContain('ILIKE $5');
-    expect(valoresSelect).toEqual(expect.arrayContaining(['cat-1', 'Curitiba', 'PR', '%sofá%']));
+    expect(valoresSelect).toEqual(expect.arrayContaining(['cat-1', '%Curitiba%', 'PR', '%sofá%']));
   });
 });

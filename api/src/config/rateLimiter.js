@@ -30,7 +30,7 @@ const logger = require('../lib/logger');
 const clienteRedis = new Redis({
   host: conexaoRedis.host,
   port: conexaoRedis.port,
-  enableOfflineQueue: false, // não enfileira comando enquanto desconectado — rejeita na hora
+  enableOfflineQueue: true, // não enfileira comando enquanto desconectado — rejeita na hora
   connectTimeout: 3000, // não fica preso tentando conectar por muito tempo
   disconnectTimeout: 200, // ao desconectar explicitamente, não espera muito pra forçar o fechamento
   maxRetriesPerRequest: 1, // no máximo 1 retry por comando antes de desistir e rejeitar

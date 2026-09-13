@@ -9,6 +9,26 @@ services:
       - redis-data:/data
     ports:
       - "6379:6379"
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: movelcarente
+      POSTGRES_USER: movelcarente
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U movelcarente -d movelcarente"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -38,9 +58,30 @@ services:
       SMTP_SECURE: ${SMTP_SECURE}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
-      SMTP_FROM: ${SMTP_FROM:-MóvelCarente <nao-responda@movelcarente.local>}
+      SMTP_FROM: ${SMTP_FROM}
       EXPOR_TOKENS_DEV: ${EXPOR_TOKENS_DEV}
     depends_on:
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://movelcarente:${POSTGRES_PASSWORD}@postgres:5432/movelcarente?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+      CORS_ORIGIN: http://localhost:8080
+      FRONTEND_URL: http://localhost:5173
+      COOKIE_CROSS_SITE: "false"
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+    depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     ports:
@@ -78,6 +119,13 @@ services:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL}
       DIRECT_URL: ${DIRECT_URL}
+  worker:
+    build:
+      context: ./api
+    command: npm run worker:email
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://movelcarente:${POSTGRES_PASSWORD}@postgres:5432/movelcarente?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
       SMTP_HOST: ${SMTP_HOST}
@@ -85,8 +133,12 @@ services:
       SMTP_SECURE: ${SMTP_SECURE}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
-      SMTP_FROM: ${SMTP_FROM:-MóvelCarente <nao-responda@movelcarente.local>}
+      SMTP_FROM: ${SMTP_FROM}
     depends_on:
+      SMTP_FROM: ${SMTP_FROM}
+    depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
       api:
@@ -116,3 +168,19 @@ volumes:
   redis-data:
   uploads-data:
   postgres-data:
+  frontend:
+    build:
+      context: ./front-end
+      args:
+        VITE_API_URL: http://localhost:3000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  uploads-data:

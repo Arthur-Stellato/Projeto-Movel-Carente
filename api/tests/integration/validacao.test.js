@@ -559,6 +559,27 @@ describe('PUT /itens/:id — atualização parcial', () => {
       .send({ estado: 'XX' });
     expect(res.status).toBe(400);
   });
+
+  // Regressão: faltava .min(1) aqui (só existia no schema de criar) — uma
+  // cidade vazia era aceita numa edição parcial, sem erro nenhum, e o item
+  // ficava invisível pra busca por raio sem ninguém perceber na hora.
+  test('rejeita cidade vazia (mesma regra do schema de criar)', async () => {
+    const res = await request(app)
+      .put(`/itens/${UUID_VALIDO}`)
+      .set('Authorization', `Bearer ${gerarToken()}`)
+      .send({ cidade: '' });
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/cidade não pode ficar vazia/);
+    expect(prismaFoiChamado()).toBe(false);
+  });
+
+  test('rejeita cidade só com espaços (trim reduz a zero)', async () => {
+    const res = await request(app)
+      .put(`/itens/${UUID_VALIDO}`)
+      .set('Authorization', `Bearer ${gerarToken()}`)
+      .send({ cidade: '   ' });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('POST /itens/:id/imagens', () => {
