@@ -1,12 +1,20 @@
 name: movelcarente
 
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis-movelcarente
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
   postgres:
     image: postgis/postgis:16-3.4
     environment:
       POSTGRES_DB: movelcarente
       POSTGRES_USER: movelcarente
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-movelcarente}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -31,15 +39,37 @@ services:
   api:
     build:
       context: ./api
+    container_name: api-movelcarente
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL}
+      DIRECT_URL: ${DIRECT_URL}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      FRONTEND_URL: ${FRONTEND_URL}
+      COOKIE_CROSS_SITE: "false"
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      EXPOR_TOKENS_DEV: ${EXPOR_TOKENS_DEV}
+    depends_on:
     environment:
       NODE_ENV: development
       PORT: 3000
-      DATABASE_URL: postgresql://movelcarente:${POSTGRES_PASSWORD:-movelcarente}@postgres:5432/movelcarente?schema=public
+      DATABASE_URL: postgresql://movelcarente:${POSTGRES_PASSWORD}@postgres:5432/movelcarente?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-troque-esta-chave-local-por-uma-chave-com-mais-de-32-caracteres}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
-      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
       CORS_ORIGIN: http://localhost:8080
       FRONTEND_URL: http://localhost:5173
       COOKIE_CROSS_SITE: "false"
@@ -48,7 +78,7 @@ services:
       SMTP_SECURE: ${SMTP_SECURE}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
-      SMTP_FROM: ${SMTP_FROM:-"MóvelCarente <nao-responda@movelcarente.local>"}
+      SMTP_FROM: ${SMTP_FROM}
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,13 +96,36 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ./front-end
+      args:
+        VITE_API_URL: /api
+    container_name: frontend-movelcarente
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./api
+    container_name: worker-movelcarente
+    command: npm run worker:email
+    profiles: ["worker", "full"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      DIRECT_URL: ${DIRECT_URL}
   worker:
     build:
       context: ./api
     command: npm run worker:email
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgresql://movelcarente:${POSTGRES_PASSWORD:-movelcarente}@postgres:5432/movelcarente?schema=public
+      DATABASE_URL: postgresql://movelcarente:${POSTGRES_PASSWORD}@postgres:5432/movelcarente?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
       SMTP_HOST: ${SMTP_HOST}
@@ -80,7 +133,9 @@ services:
       SMTP_SECURE: ${SMTP_SECURE}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
-      SMTP_FROM: ${SMTP_FROM:-"MóvelCarente <nao-responda@movelcarente.local>"}
+      SMTP_FROM: ${SMTP_FROM}
+    depends_on:
+      SMTP_FROM: ${SMTP_FROM}
     depends_on:
       postgres:
         condition: service_healthy
@@ -90,6 +145,29 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: postgres-movelcarente
+    profiles: ["local-db", "full"]
+    environment:
+      POSTGRES_DB: movelcarente
+      POSTGRES_USER: movelcarente
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U movelcarente -d movelcarente"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  uploads-data:
+  postgres-data:
   frontend:
     build:
       context: ./front-end

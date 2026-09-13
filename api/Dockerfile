@@ -15,6 +15,8 @@ COPY src ./src
 
 EXPOSE 3000
 
+# Aplica migrations pendentes se houver, e inicia a aplicação
+CMD ["sh", "-c", "npx prisma migrate deploy || true && npm start"]
 # As migrations são idempotentes e garantem que uma instalação vazia esteja
 # pronta antes de a API aceitar conexões.
 CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
