@@ -213,7 +213,11 @@ function configurarSocket(servidorHttp) {
         // atraso de debounce).
         socket.to(sala).emit('mensagem:usuario_digitando', { usuarioId: socket.usuario.id, digitando: false });
       } catch (err) {
-        return socket.emit('erro', { mensagem: err.message || 'Não foi possível enviar a mensagem' });
+        // err.codigo existe pra erros de domínio (ex: EMAIL_NAO_VERIFICADO,
+        // lançado por mensagemService.enviarMensagem) — mesmo padrão de
+        // 'erro' + 'codigo' já usado acima pro rate limit, pro cliente poder
+        // reagir de forma específica em vez de só mostrar o texto.
+        return socket.emit('erro', { mensagem: err.message || 'Não foi possível enviar a mensagem', ...(err.codigo ? { codigo: err.codigo } : {}) });
       }
     }));
 

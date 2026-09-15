@@ -36,6 +36,23 @@ async function enviarMensagem(solicitacaoId, remetenteId, dados) {
     throw new ErroMensagem('Você não participa desta solicitação', 403);
   }
 
+  // Único ponto de checagem de verificação de email pro chat — tanto a rota
+  // REST (POST /solicitacoes/:id/mensagens) quanto o evento de socket
+  // 'mensagem:enviar' chamam esta função, então a regra vale pros dois
+  // caminhos sem precisar duplicar a checagem em cada um (ver auth.middleware.js
+  // para o equivalente usado em rotas que não têm essa duplicidade REST/socket).
+  const remetente = await prisma.usuario.findUnique({
+    where: { id: remetenteId },
+    select: { emailVerificado: true },
+  });
+  if (!remetente?.emailVerificado) {
+    throw new ErroMensagem(
+      'Confirme seu email antes de enviar mensagens no chat.',
+      403,
+      'EMAIL_NAO_VERIFICADO'
+    );
+  }
+
   if (solicitacao.status === 'recusada' || solicitacao.status === 'cancelada') {
     throw new ErroMensagem('Essa conversa não aceita mais mensagens', 409);
   }

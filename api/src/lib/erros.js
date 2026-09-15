@@ -12,9 +12,10 @@ const logger = require('./logger');
 // identidade própria (ErroItem !== ErroUsuario, então dá pra checar tipo específico
 // se algum dia precisar), mas sem repetir o construtor.
 class ErroDominio extends Error {
-  constructor(mensagem, status = 400) {
+  constructor(mensagem, status = 400, codigo = null) {
     super(mensagem);
     this.status = status;
+    this.codigo = codigo;
   }
 }
 
@@ -62,7 +63,11 @@ function tratarErroPrisma(err, res) {
 // os 8 domínios de uma vez — não precisa mais saber qual classe específica checar.
 function tratarErroController(err, res) {
   if (err instanceof ErroDominio) {
-    return res.status(err.status).json({ erro: err.message });
+    // codigo é opcional: só entra na resposta quando o erro realmente carrega um
+    // (ex: EMAIL_NAO_VERIFICADO) — o frontend usa isso pra decidir uma ação
+    // específica (tipo mostrar "reenviar verificação"), em vez de comparar o
+    // texto da mensagem, que pode mudar sem quebrar esse contrato.
+    return res.status(err.status).json({ erro: err.message, ...(err.codigo ? { codigo: err.codigo } : {}) });
   }
   if (err && err.name === 'PrismaClientKnownRequestError') {
     return tratarErroPrisma(err, res);

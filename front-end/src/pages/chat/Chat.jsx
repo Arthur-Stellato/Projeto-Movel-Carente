@@ -13,11 +13,14 @@ import { STATUS_SOLICITACAO, STATUS_ITEM } from '../../constants';
 import StatusBadge from '../../components/common/StatusBadge';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { formatarTempoRelativo } from '../../lib/formatadores';
+import { ehEmailNaoVerificado } from '../../lib/erroEmailNaoVerificado';
+import { useReenviarVerificacao } from '../../hooks/useReenviarVerificacao';
 
 export default function Chat() {
   const { solicitacaoId } = useParams();
   const { usuario } = useAuth();
   const { mostrar } = useToast();
+  const reenviarVerificacao = useReenviarVerificacao();
 
   const [solicitacao, setSolicitacao] = useState(null);
   const [mensagens, setMensagens] = useState([]);
@@ -78,7 +81,11 @@ export default function Chat() {
 
     socket.on('erro', (errPayload) => {
       if (errPayload?.mensagem) {
-        mostrar(errPayload.mensagem, 'erro');
+        if (errPayload.codigo === 'EMAIL_NAO_VERIFICADO') {
+          mostrar(errPayload.mensagem, 'erro', { texto: 'Reenviar verificação', aoClicar: reenviarVerificacao });
+        } else {
+          mostrar(errPayload.mensagem, 'erro');
+        }
       }
     });
 
@@ -107,7 +114,11 @@ export default function Chat() {
         setTimeout(() => rolarParaFim(true), 50);
       }
     } catch (err) {
-      mostrar(mensagemDeErro(err), 'erro');
+      if (ehEmailNaoVerificado(err)) {
+        mostrar(mensagemDeErro(err), 'erro', { texto: 'Reenviar verificação', aoClicar: reenviarVerificacao });
+      } else {
+        mostrar(mensagemDeErro(err), 'erro');
+      }
       setTexto(conteudo);
     } finally {
       setEnviando(false);

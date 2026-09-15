@@ -1,6 +1,6 @@
 const express = require('express');
 const itemController = require('../controllers/item.controller');
-const { autenticar, autenticarOpcional } = require('../middlewares/auth.middleware');
+const { autenticar, autenticarOpcional, exigirEmailVerificado } = require('../middlewares/auth.middleware');
 const { validarUuidParam } = require('../middlewares/validarId.middleware');
 const { uploadImagensItem } = require('../middlewares/upload.middleware');
 const { validar } = require('../middlewares/validar.middleware');
@@ -121,7 +121,7 @@ router.get('/:id', validarUuidParam('id'), autenticarOpcional, itemController.bu
  *       400: { $ref: '#/components/responses/DadosInvalidos' }
  *       401: { $ref: '#/components/responses/NaoAutorizado' }
  */
-router.post('/', autenticar, validar(itemValidation.criar), itemController.criar);
+router.post('/', autenticar, exigirEmailVerificado, validar(itemValidation.criar), itemController.criar);
 
 /**
  * @swagger

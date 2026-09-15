@@ -17,6 +17,8 @@ import { avaliacaoService } from '../../services/avaliacao.service';
 import { resolverUrlImagem, mensagemDeErro } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { ehEmailNaoVerificado } from '../../lib/erroEmailNaoVerificado';
+import { useReenviarVerificacao } from '../../hooks/useReenviarVerificacao';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import StatusBadge from '../../components/common/StatusBadge';
 import EstrelasRating from '../../components/common/EstrelasRating';
@@ -31,6 +33,7 @@ export default function ItemDetalhe() {
   const navigate = useNavigate();
   const { usuario, logado } = useAuth();
   const { mostrar } = useToast();
+  const reenviarVerificacao = useReenviarVerificacao();
 
   const [item, setItem] = useState(null);
   const [carregando, setCarregando] = useState(true);
@@ -104,7 +107,11 @@ export default function ItemDetalhe() {
       setMensagemSolicitacao('');
       carregar();
     } catch (err) {
-      mostrar(mensagemDeErro(err), 'erro');
+      if (ehEmailNaoVerificado(err)) {
+        mostrar(mensagemDeErro(err), 'erro', { texto: 'Reenviar verificação', aoClicar: reenviarVerificacao });
+      } else {
+        mostrar(mensagemDeErro(err), 'erro');
+      }
     } finally {
       setEnviandoSolicitacao(false);
     }

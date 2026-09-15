@@ -20,9 +20,9 @@ export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const proximoId = useRef(0);
 
-  const mostrar = useCallback((mensagem, tipo = 'sucesso') => {
+  const mostrar = useCallback((mensagem, tipo = 'sucesso', acao = null) => {
     const id = proximoId.current++;
-    setToasts((atual) => [...atual, { id, mensagem, tipo }]);
+    setToasts((atual) => [...atual, { id, mensagem, tipo, acao }]);
   }, []);
 
   const remover = useCallback((id) => {
@@ -39,12 +39,24 @@ export function ToastProvider({ children }) {
             bg={VARIANTE_POR_TIPO[toast.tipo]}
             onClose={() => remover(toast.id)}
             show
-            delay={4500}
+            delay={toast.acao ? 10000 : 4500}
             autohide
           >
             <ToastBootstrap.Body className={toast.tipo === 'erro' || toast.tipo === 'sucesso' ? 'text-white d-flex align-items-center gap-2' : 'd-flex align-items-center gap-2'}>
               <i className={`bi ${ICONE_POR_TIPO[toast.tipo]}`} />
-              <span>{toast.mensagem}</span>
+              <span className="flex-grow-1">{toast.mensagem}</span>
+              {toast.acao && (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-light flex-shrink-0"
+                  onClick={() => {
+                    toast.acao.aoClicar();
+                    remover(toast.id);
+                  }}
+                >
+                  {toast.acao.texto}
+                </button>
+              )}
             </ToastBootstrap.Body>
           </ToastBootstrap>
         ))}
