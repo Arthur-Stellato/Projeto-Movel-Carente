@@ -7,6 +7,8 @@ import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import Spinner from 'react-bootstrap/Spinner';
 import Alert from 'react-bootstrap/Alert';
+import { ehEmailNaoVerificado } from '../../lib/erroEmailNaoVerificado';
+import ErroComReenvio from '../common/ErroComReenvio';
 import { categoriaService } from '../../services/categoria.service';
 import { usuarioService } from '../../services/usuario.service';
 import { itemService } from '../../services/item.service';
@@ -23,6 +25,7 @@ export default function ItemFormModal({ show, onHide, item, onSalvo }) {
   const [carregandoEnderecos, setCarregandoEnderecos] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+  const [precisaVerificarEmail, setPrecisaVerificarEmail] = useState(false);
 
   // Enquanto null: ainda não existe (modo criação, antes do 1º salvar). Assim
   // que existir (edição desde o início, ou logo após criar com sucesso), a
@@ -70,6 +73,7 @@ export default function ItemFormModal({ show, onHide, item, onSalvo }) {
   async function salvar(evento) {
     evento.preventDefault();
     setErro('');
+    setPrecisaVerificarEmail(false);
     setSalvando(true);
     try {
       const enderecoSelecionado = enderecos.find((e) => e.id === form.enderecoId);
@@ -95,6 +99,7 @@ export default function ItemFormModal({ show, onHide, item, onSalvo }) {
       }
     } catch (err) {
       setErro(mensagemDeErro(err));
+      setPrecisaVerificarEmail(ehEmailNaoVerificado(err));
     } finally {
       setSalvando(false);
     }
@@ -116,7 +121,7 @@ export default function ItemFormModal({ show, onHide, item, onSalvo }) {
         <Modal.Title as="h5">{jaExiste ? (item ? 'Editar item' : 'Item anunciado!') : 'Anunciar novo item'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        {erro && <Alert variant="danger">{erro}</Alert>}
+        {erro && <ErroComReenvio erro={erro} precisaVerificarEmail={precisaVerificarEmail} />}
 
         {semEnderecoCadastrado ? (
           <Alert variant="light" className="border">

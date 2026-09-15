@@ -1,7 +1,7 @@
 const express = require('express');
 const solicitacaoController = require('../controllers/solicitacao.controller');
 const avaliacaoController = require('../controllers/avaliacao.controller');
-const { autenticar } = require('../middlewares/auth.middleware');
+const { autenticar, exigirEmailVerificado } = require('../middlewares/auth.middleware');
 const { validarUuidParam } = require('../middlewares/validarId.middleware');
 const { validar } = require('../middlewares/validar.middleware');
 const solicitacaoValidation = require('../validations/solicitacao.validation');
@@ -41,7 +41,7 @@ router.use(autenticar);
  *       403: { description: "Não é possível solicitar o próprio item", content: { application/json: { schema: { $ref: '#/components/schemas/Erro' } } } }
  *       409: { description: "Item indisponível ou já solicitado por você", content: { application/json: { schema: { $ref: '#/components/schemas/Erro' } } } }
  */
-router.post('/', validar(solicitacaoValidation.criar), solicitacaoController.criar);
+router.post('/', exigirEmailVerificado, validar(solicitacaoValidation.criar), solicitacaoController.criar);
 
 /**
  * @swagger
@@ -223,7 +223,7 @@ router.post('/:id/concluir', validarUuidParam('id'), solicitacaoController.concl
  *       404: { $ref: '#/components/responses/NaoEncontrado' }
  *       409: { description: "Doação ainda não concluída, ou você já avaliou essa solicitação", content: { application/json: { schema: { $ref: '#/components/schemas/Erro' } } } }
  */
-router.post('/:id/avaliacoes', validarUuidParam('id'), validar(avaliacaoValidation.criar), avaliacaoController.criar);
+router.post('/:id/avaliacoes', exigirEmailVerificado, validarUuidParam('id'), validar(avaliacaoValidation.criar), avaliacaoController.criar);
 
 /**
  * @swagger
@@ -324,6 +324,10 @@ router.get('/:id/mensagens', validarUuidParam('id'), solicitacaoController.lista
  *       403: { $ref: '#/components/responses/Proibido' }
  *       409: { description: "Conversa encerrada" }
  */
+// exigirEmailVerificado NÃO entra aqui: a checagem já mora dentro de
+// mensagemService.enviarMensagem, que também é chamada pelo evento de socket
+// 'mensagem:enviar' — colocar o middleware aqui também faria essa consulta
+// no banco duas vezes pra mesma coisa, só nesta rota REST.
 router.post('/:id/mensagens', validarUuidParam('id'), validar(mensagemValidation.enviar), solicitacaoController.enviarMensagem);
 
 /**
@@ -360,7 +364,7 @@ router.post('/:id/mensagens', validarUuidParam('id'), validar(mensagemValidation
  *       400: { $ref: '#/components/responses/DadosInvalidos' }
  *       403: { $ref: '#/components/responses/Proibido' }
  */
-router.post('/:id/mensagens/anexo', validarUuidParam('id'), uploadAnexoMensagem, mensagemController.enviarAnexo);
+router.post('/:id/mensagens/anexo', exigirEmailVerificado, validarUuidParam('id'), uploadAnexoMensagem, mensagemController.enviarAnexo);
 
 /**
  * @swagger

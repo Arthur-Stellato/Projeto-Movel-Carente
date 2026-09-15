@@ -48,13 +48,10 @@ async function login({ email, senha, userAgent, ipOrigem }) {
     throw new ErroAutenticacao('Conta desativada. Entre em contato com o suporte', 403);
   }
 
-  if (!usuario.emailVerificado) {
-    throw new ErroAutenticacao(
-      'Confirme seu email antes de entrar. Verifique sua caixa de entrada ou peça um novo link de verificação.',
-      403,
-      'EMAIL_NAO_VERIFICADO'
-    );
-  }
+  // Login deixou de exigir email verificado (decisão consciente — ver conversa
+  // sobre acesso graduado): a conta entra normalmente, mas fica restrita nas
+  // ações que dependem de contato real (anunciar, solicitar, conversar, avaliar),
+  // barradas pelo middleware exigirEmailVerificado nessas rotas específicas.
 
   if (usuario.bloqueadoAte && usuario.bloqueadoAte > new Date()) {
     const minutosRestantes = Math.ceil((usuario.bloqueadoAte - new Date()) / 60000);

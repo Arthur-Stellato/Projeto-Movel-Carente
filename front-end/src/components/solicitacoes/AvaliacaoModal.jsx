@@ -3,7 +3,8 @@ import Modal from 'react-bootstrap/Modal';
 import Form from 'react-bootstrap/Form';
 import Button from 'react-bootstrap/Button';
 import Spinner from 'react-bootstrap/Spinner';
-import Alert from 'react-bootstrap/Alert';
+import { ehEmailNaoVerificado } from '../../lib/erroEmailNaoVerificado';
+import ErroComReenvio from '../common/ErroComReenvio';
 import { avaliacaoService } from '../../services/avaliacao.service';
 import { mensagemDeErro } from '../../services/api';
 import StarRating from '../common/StarRating';
@@ -18,6 +19,7 @@ export default function AvaliacaoModal({ show, onHide, solicitacaoId }) {
   const [comentario, setComentario] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
+  const [precisaVerificarEmail, setPrecisaVerificarEmail] = useState(false);
 
   useEffect(() => {
     if (!show || !solicitacaoId) return;
@@ -39,6 +41,7 @@ export default function AvaliacaoModal({ show, onHide, solicitacaoId }) {
       return;
     }
     setErro('');
+    setPrecisaVerificarEmail(false);
     setEnviando(true);
     try {
       const avaliacao = await avaliacaoService.criar(solicitacaoId, { nota, comentario });
@@ -46,6 +49,7 @@ export default function AvaliacaoModal({ show, onHide, solicitacaoId }) {
       mostrar('Avaliação enviada. Obrigado!');
     } catch (err) {
       setErro(mensagemDeErro(err));
+      setPrecisaVerificarEmail(ehEmailNaoVerificado(err));
     } finally {
       setEnviando(false);
     }
@@ -61,7 +65,7 @@ export default function AvaliacaoModal({ show, onHide, solicitacaoId }) {
           <LoadingSpinner rotulo="Carregando..." />
         ) : (
           <>
-            {erro && <Alert variant="danger">{erro}</Alert>}
+            {erro && <ErroComReenvio erro={erro} precisaVerificarEmail={precisaVerificarEmail} />}
 
             {status?.minhaAvaliacao ? (
               <div className="mb-3">
