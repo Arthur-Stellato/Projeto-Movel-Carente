@@ -4,7 +4,7 @@ Plataforma colaborativa para conectar doadores de móveis e utensílios domésti
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## Tecnologias Utilizadas
 
 - **Front-end**: React, Vite, Bootstrap, React Router, Socket.IO Client.
 - **Back-end**: Node.js, Express, Prisma ORM, Socket.IO, BullMQ, Joi, JWT, Helmet.
@@ -14,7 +14,7 @@ Plataforma colaborativa para conectar doadores de móveis e utensílios domésti
 
 ---
 
-## 🚀 Como Executar Localmente com Docker
+## Como Executar Localmente com Docker
 
 O projeto está configurado para rodar por padrão em **3 containers**, utilizando o banco de dados **Supabase** na nuvem:
 1. `api-movelcarente` (porta `3000`)
@@ -55,7 +55,7 @@ O projeto está configurado para rodar por padrão em **3 containers**, utilizan
 
 ---
 
-## 🌐 Guia de Deploy (3 Abordagens)
+## Guia de Deploy (3 Abordagens)
 
 Dependendo de onde você pretende hospedar a aplicação, escolha a abordagem mais adequada:
 
@@ -79,7 +79,7 @@ Dependendo de onde você pretende hospedar a aplicação, escolha a abordagem ma
 
 ---
 
-### 🌟 Abordagem 1: Front-end na Vercel + API no Railway/Render (Recomendada)
+###  Abordagem 1: Front-end na Vercel + API no Railway/Render (Recomendada)
 
 > [!TIP]
 > **Por que é a mais recomendada?**
@@ -133,7 +133,7 @@ Dependendo de onde você pretende hospedar a aplicação, escolha a abordagem ma
 
 ---
 
-### 🐳 Abordagem 2: 100% Docker em VPS / Servidor em Nuvem
+### Abordagem 2: 100% Docker em VPS / Servidor em Nuvem
 
 Ideal para hospedar tudo em uma única máquina virtual própria (DigitalOcean, AWS EC2, Hetzner, Linode, Oracle Cloud, etc.).
 
@@ -174,7 +174,7 @@ docker compose up -d --build
 
 ---
 
-### ⚡ Abordagem 3: Dois Projetos na Vercel (Front-end + API Serverless)
+### Abordagem 3: Dois Projetos na Vercel (Front-end + API Serverless)
 
 Ideal se você deseja uma hospedagem 100% gratuita na Vercel sem gerenciar nenhum servidor.
 
@@ -222,7 +222,7 @@ Ideal se você deseja uma hospedagem 100% gratuita na Vercel sem gerenciar nenhu
 
 ---
 
-## 📋 Tabela Comparativa das Abordagens
+## Tabela Comparativa das Abordagens
 
 | Recurso / Requisito | Abordagem 1 (Vercel + Railway) | Abordagem 2 (100% Docker / VPS) | Abordagem 3 (100% Vercel) |
 | :--- | :---: | :---: | :---: |
@@ -235,7 +235,7 @@ Ideal se você deseja uma hospedagem 100% gratuita na Vercel sem gerenciar nenhu
 
 ---
 
-## 🛠️ Comandos Úteis
+## Comandos Úteis
 
 ```sh
 # Sincronizar o banco de dados com o schema do Prisma:
