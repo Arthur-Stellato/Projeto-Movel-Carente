@@ -1,1 +1,4 @@
 .env
+# Teste de carga (JMeter) - kit local e resultados, nao commitar
+carga/
+api/prisma/seed-carga.js
