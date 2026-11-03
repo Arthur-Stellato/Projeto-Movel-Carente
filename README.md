@@ -4,7 +4,7 @@ Plataforma colaborativa para conectar doadores de móveis e utensílios domésti
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## Tecnologias Utilizadas
 
 - **Front-end**: React, Vite, Bootstrap, React Router, Socket.IO Client.
 - **Back-end**: Node.js, Express, Prisma ORM, Socket.IO, BullMQ, Joi, JWT, Helmet.
@@ -14,12 +14,13 @@ Plataforma colaborativa para conectar doadores de móveis e utensílios domésti
 
 ---
 
-## 🚀 Como Executar Localmente com Docker
+## Como Executar Localmente com Docker
 
-O projeto está configurado para rodar por padrão em **3 containers**, utilizando o banco de dados **Supabase** na nuvem:
+O projeto está configurado para rodar por padrão em **4 containers**, utilizando o banco de dados **Supabase** na nuvem:
 1. `api-movelcarente` (porta `3000`)
 2. `frontend-movelcarente` (porta `8080`)
 3. `redis-movelcarente` (porta `6379`)
+4. `worker-movelcarente` (envia os e-mails em segundo plano; sem ele nenhum e-mail de verificação ou de recuperação de senha é enviado. Sem `SMTP_HOST`, os e-mails aparecem só no log dele: `docker compose logs -f worker`)
 
 ### Passo a Passo Local:
 
@@ -40,11 +41,11 @@ O projeto está configurado para rodar por padrão em **3 containers**, utilizan
    - **Documentação Swagger**: [http://localhost:3000/docs](http://localhost:3000/docs)
 
 4. **Perfis adicionais opcionais:**
-   - Para rodar também o worker de processamento de e-mails:
-     ```sh
-     docker compose --profile worker up
+   - Para rodar com um PostgreSQL local (sem Supabase), aponte `DATABASE_URL` e `DIRECT_URL` do `.env` para ele (os dois com o mesmo valor) e suba com o perfil:
+     ```env
+     DATABASE_URL=postgresql://movelcarente:SUA_POSTGRES_PASSWORD@postgres:5432/movelcarente?schema=public
+     DIRECT_URL=postgresql://movelcarente:SUA_POSTGRES_PASSWORD@postgres:5432/movelcarente?schema=public
      ```
-   - Para rodar com um PostgreSQL local (sem Supabase):
      ```sh
      docker compose --profile local-db up
      ```
@@ -55,31 +56,32 @@ O projeto está configurado para rodar por padrão em **3 containers**, utilizan
 
 ---
 
-## 🌐 Guia de Deploy (3 Abordagens)
+## Guia de Deploy (2 Abordagens)
 
 Dependendo de onde você pretende hospedar a aplicação, escolha a abordagem mais adequada:
 
 ```
-                  ┌──────────────────────────────────────────────┐
-                  │              Banco de Dados                  │
-                  │             PostgreSQL (Supabase)            │
-                  └──────────────┬───────────────────────────────┘
-                                 │
-         ┌───────────────────────┼────────────────────────┐
-         │                       │                        │
-         ▼                       ▼                        ▼
-┌───────────────────┐  ┌────────────────────┐   ┌───────────────────┐
-│   Abordagem 1     │  │    Abordagem 2     │   │    Abordagem 3    │
-│  (Recomendada)    │  │    (100% Docker)   │   │   (100% Vercel)   │
-│ Front: Vercel     │  │ VPS / Servidor     │   │ Front: Vercel     │
-│ API: Railway      │  │ Docker Compose     │   │ API: Vercel       │
-│ Redis: Railway    │  │ Nginx + Node + Redis│  │ (Serverless)      │
-└───────────────────┘  └────────────────────┘   └───────────────────┘
+ ┌──────────────────────────────────────────────┐
+ │              Banco de Dados                  │
+ │             PostgreSQL (Supabase)            │
+ └──────────────────────┬───────────────────────┘
+                        │
+          ┌─────────────┴─────────────┐
+          │                           │
+          ▼                           ▼
+┌───────────────────┐      ┌────────────────────┐
+│   Abordagem 1     │      │    Abordagem 2     │
+│  (Recomendada)    │      │    (100% Docker)   │
+│ Front: Vercel     │      │ VPS / Servidor     │
+│ API: Railway      │      │ Docker Compose     │
+│ Worker: Railway   │      │ Nginx+Node+Redis   │
+│ Redis: Railway    │      │ +Worker            │
+└───────────────────┘      └────────────────────┘
 ```
 
 ---
 
-### 🌟 Abordagem 1: Front-end na Vercel + API no Railway/Render (Recomendada)
+###  Abordagem 1: Front-end na Vercel + API no Railway/Render (Recomendada)
 
 > [!TIP]
 > **Por que é a mais recomendada?**
@@ -110,6 +112,7 @@ Dependendo de onde você pretende hospedar a aplicação, escolha a abordagem ma
    JWT_REFRESH_EXPIRES_IN=7d
    CORS_ORIGIN=https://seu-front.vercel.app
    FRONTEND_URL=https://seu-front.vercel.app
+   COOKIE_CROSS_SITE=true
    SMTP_HOST=smtp.gmail.com
    SMTP_PORT=587
    SMTP_SECURE=false
@@ -117,9 +120,16 @@ Dependendo de onde você pretende hospedar a aplicação, escolha a abordagem ma
    SMTP_PASS=sua_senha_de_app
    SMTP_FROM=MóvelCarente <nao-responda@movelcarente.com.br>
    ```
+   > `COOKIE_CROSS_SITE=true` é necessário porque o front (Vercel) e a API (Railway) ficam em domínios diferentes; sem ele o cookie de refresh não é enviado e o login cai ao recarregar a página.
 5. Gere um domínio público para a API em **Settings > Networking > Generate Domain** (ex: `https://api-movelcarente.up.railway.app`).
 
-#### Passo 3: Front-end na Vercel
+#### Passo 3: Worker de e-mails no Railway
+Sem o worker nenhum e-mail (verificação de conta, recuperação de senha) é enviado.
+1. No mesmo projeto, clique em **New > GitHub Repo** e selecione o mesmo repositório (**Root Directory**: `/api`).
+2. Em **Settings > Deploy > Custom Start Command**, defina: `npm run worker:email`.
+3. Em **Variables**, copie do serviço da API: `DATABASE_URL`, `DIRECT_URL`, `REDIS_HOST`, `REDIS_PORT` e as variáveis `SMTP_*`.
+
+#### Passo 4: Front-end na Vercel
 1. Acesse a [Vercel](https://vercel.com) e clique em **Add New > Project**.
 2. Importe o repositório do GitHub.
 3. Configure o projeto:
@@ -133,7 +143,7 @@ Dependendo de onde você pretende hospedar a aplicação, escolha a abordagem ma
 
 ---
 
-### 🐳 Abordagem 2: 100% Docker em VPS / Servidor em Nuvem
+### Abordagem 2: 100% Docker em VPS / Servidor em Nuvem
 
 Ideal para hospedar tudo em uma única máquina virtual própria (DigitalOcean, AWS EC2, Hetzner, Linode, Oracle Cloud, etc.).
 
@@ -153,7 +163,7 @@ newgrp docker
 ```bash
 # 1. Clonar o projeto
 git clone https://github.com/Arthur-Stellato/Projeto-Movel-Carente.git
-cd Projeto-Movel-Carente/Projeto-Movel-Carente
+cd Projeto-Movel-Carente
 
 # 2. Criar o arquivo de ambiente na raiz
 cp .env.docker.example .env
@@ -174,72 +184,29 @@ docker compose up -d --build
 
 ---
 
-### ⚡ Abordagem 3: Dois Projetos na Vercel (Front-end + API Serverless)
+## Tabela Comparativa das Abordagens
 
-Ideal se você deseja uma hospedagem 100% gratuita na Vercel sem gerenciar nenhum servidor.
-
-> [!WARNING]
-> **Limitações importantes desta abordagem:**
-> 1. **Chat em Tempo Real (Socket.IO)**: A Vercel executa código em funções *Serverless* efêmeras, que não suportam conexões WebSocket persistentes. O chat em tempo real exigirá fallback para requisições REST ou um serviço externo de WebSockets.
-> 2. **Processos Contínuos (Worker)**: O worker de e-mails em background não roda de forma contínua na Vercel.
-> 3. Todas as demais funções (Cadastro, Login, Catálogo de Itens, Doações, Avaliações, etc.) funcionam normalmente.
-
-#### Passo 1: Criar o Projeto da API na Vercel
-1. Importe o repositório na Vercel.
-2. Nome do projeto: `movelcarente-api`.
-3. **Root Directory**: `api`.
-4. A Vercel detectará automaticamente as configurações do arquivo [`api/vercel.json`](file:///c:/Users/Yonit/OneDrive/Documentos/GitHub/Projeto-Movel-Carente/Projeto-Movel-Carente/api/vercel.json).
-5. Em **Environment Variables**, adicione:
-   ```env
-   DATABASE_URL=sua_connection_string_supabase?pgbouncer=true
-   DIRECT_URL=sua_direct_string_supabase
-   JWT_SECRET=seu_segredo_jwt_de_32_caracteres
-   JWT_EXPIRES_IN=15m
-   JWT_REFRESH_EXPIRES_IN=7d
-   CORS_ORIGIN=https://seu-front.vercel.app
-   FRONTEND_URL=https://seu-front.vercel.app
-   SMTP_HOST=smtp.gmail.com
-   SMTP_PORT=587
-   SMTP_SECURE=false
-   SMTP_USER=seu_email@gmail.com
-   SMTP_PASS=sua_senha_de_app
-   SMTP_FROM=MóvelCarente <nao-responda@movelcarente.com.br>
-   COOKIE_CROSS_SITE=true
-   ```
-6. Faça o Deploy e copie a URL gerada (ex: `https://movelcarente-api.vercel.app`).
-
-#### Passo 2: Criar o Projeto do Front-end na Vercel
-1. No painel da Vercel, clique em **Add New > Project**.
-2. Importe o mesmo repositório.
-3. Nome do projeto: `movelcarente-front`.
-4. **Root Directory**: `front-end`.
-5. **Framework Preset**: `Vite`.
-6. Em **Environment Variables**, adicione:
-   ```env
-   VITE_API_URL=https://movelcarente-api.vercel.app
-   ```
-7. Clique em **Deploy**.
+| Recurso / Requisito | Abordagem 1 (Vercel + Railway) | Abordagem 2 (100% Docker / VPS) |
+| :--- | :---: | :---: |
+| **Dificuldade de Setup** | Fácil | Média |
+| **Custo Inicial** | Gratuito / Muito Baixo | ~\$4 - \$6/mês (VPS) |
+| **Chat em Tempo Real (Socket.IO)** | ✅ 100% Funcional | ✅ 100% Funcional |
+| **Worker de E-mails Contínuo** | ✅ Suportado | ✅ Suportado |
+| **Manutenção de Servidor** | Zero (Gerenciado) | Você gerencia o Linux |
+| **Banco de Dados** | Supabase | Supabase ou Local |
 
 ---
 
-## 📋 Tabela Comparativa das Abordagens
-
-| Recurso / Requisito | Abordagem 1 (Vercel + Railway) | Abordagem 2 (100% Docker / VPS) | Abordagem 3 (100% Vercel) |
-| :--- | :---: | :---: | :---: |
-| **Dificuldade de Setup** | Fácil | Média | Muito Fácil |
-| **Custo Inicial** | Gratuito / Muito Baixo | ~\$4 - \$6/mês (VPS) | Gratuito |
-| **Chat em Tempo Real (Socket.IO)** | ✅ 100% Funcional | ✅ 100% Funcional | ⚠️ Limitado (Serverless) |
-| **Worker de E-mails Contínuo** | ✅ Suportado | ✅ Suportado | ❌ Não suportado |
-| **Manutenção de Servidor** | Zero (Gerenciado) | Você gerencia o Linux | Zero (Serverless) |
-| **Banco de Dados** | Supabase | Supabase ou Local | Supabase |
-
----
-
-## 🛠️ Comandos Úteis
+## Comandos Úteis
 
 ```sh
-# Sincronizar o banco de dados com o schema do Prisma:
-npx prisma db push
+# Aplicar as migrations no banco em desenvolvimento (rode dentro de api/):
+npx prisma migrate dev
+
+# Em produção, aplica só as migrations pendentes (rode dentro de api/):
+npx prisma migrate deploy
+
+# Não use "prisma db push": ele pula o SQL das migrations (PostGIS, unaccent).
 
 # Gerar o Prisma Client após alterações no schema:
 npx prisma generate
@@ -250,4 +217,3 @@ npm test
 # Build de produção do Front-end:
 npm run build
 ```
-
