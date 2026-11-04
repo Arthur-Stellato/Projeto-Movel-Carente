@@ -65,12 +65,12 @@ export default function Registro() {
         ultimoNome: form.ultimoNome,
         email: form.email,
         telefone: form.telefone || undefined,
-        genero: form.genero,
         senha: form.senha,
       };
 
       if (form.tipoDoc === 'cpf') {
         payload.cpf = form.documento;
+        payload.genero = form.genero;
       } else {
         payload.cnpj = form.documento;
       }

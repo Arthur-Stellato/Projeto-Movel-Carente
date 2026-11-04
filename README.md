@@ -57,6 +57,7 @@ O projeto está configurado para rodar por padrão em **4 containers**, utilizan
 ---
 
 ## Guia de Deploy (2 Abordagens)
+## Guia de Deploy (3 Abordagens)
 
 Dependendo de onde você pretende hospedar a aplicação, escolha a abordagem mais adequada:
 
@@ -185,6 +186,9 @@ docker compose up -d --build
 ---
 
 ## Tabela Comparativa das Abordagens
+### Abordagem 3: Dois Projetos na Vercel (Front-end + API Serverless)
+
+Ideal se você deseja uma hospedagem 100% gratuita na Vercel sem gerenciar nenhum servidor.
 
 | Recurso / Requisito | Abordagem 1 (Vercel + Railway) | Abordagem 2 (100% Docker / VPS) |
 | :--- | :---: | :---: |
