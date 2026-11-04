@@ -27,6 +27,16 @@ const logger = require('../lib/logger');
 // uma queda real. A lógica de retry do próprio rate-limit-redis (retryableIncrement) já
 // recarrega o script sozinha na primeira requisição real, então isso nunca afeta o
 // funcionamento — só aparece no log uma vez (ou duas, uma por limitador) na subida.
+
+const LIMITE_GERAL = Number(process.env.RATE_LIMIT_GERAL) || 300;
+const LIMITE_AUTH = Number(process.env.RATE_LIMIT_AUTH) || 10;
+if (LIMITE_GERAL !== 300 || LIMITE_AUTH !== 10) {
+  logger.warn(
+    { LIMITE_GERAL, LIMITE_AUTH },
+    '[rateLimiter] Limites alterados por env (RATE_LIMIT_*) — use só em teste de carga, nunca em produção'
+  );
+}
+
 const clienteRedis = new Redis({
   host: conexaoRedis.host,
   port: conexaoRedis.port,
@@ -59,7 +69,7 @@ function criarStore(prefixo) {
 // Limite geral: aplicado a toda a API, protege contra abuso genérico/scraping
 const limitadorGeral = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  limit: 300,
+  limit: LIMITE_GERAL,
   standardHeaders: true,
   legacyHeaders: false,
   store: criarStore('geral'),
@@ -72,7 +82,7 @@ const limitadorGeral = rateLimit({
 // protege UMA conta específica; este protege contra alguém varrendo MUITAS contas a partir do mesmo IP.
 const limitadorAuth = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: LIMITE_AUTH,
   standardHeaders: true,
   legacyHeaders: false,
   store: criarStore('auth'),

@@ -7,6 +7,7 @@ services:
     restart: unless-stopped
     volumes:
       - redis-movelcarente-data:/data
+      
 
 volumes:
   redis-movelcarente-data:

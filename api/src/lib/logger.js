@@ -11,6 +11,10 @@ const logger = pino({
   // (level 'silent' já corta tudo antes, e o worker thread do pino-pretty não some
   // limpo no ambiente do Jest, causando os mesmos avisos de "handle aberto" que já
   // vimos com o ioredis).
+    redact: {
+    paths: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
+    censor: '[removido]',
+  },
   transport: producao || ambienteDeTeste
     ? undefined
     : {
