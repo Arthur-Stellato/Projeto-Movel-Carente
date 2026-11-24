@@ -93,7 +93,7 @@ O **MóvelCarente** conecta **doadores**, que anunciam itens físicos, com **pes
 ### 1. Clonar
 
 ```bash
-git clone https://github.com/Yakino41/Projeto-Movel-Carente.git
+git clone https://github.com/Arthur-Stellato/Projeto-Movel-Carente.git
 cd Projeto-Movel-Carente
 ```
 
@@ -161,8 +161,9 @@ Com o backend rodando:
 [![GitHub](https://img.shields.io/badge/GitHub-Arthur--Stellato-181717?logo=github)](https://github.com/Arthur-Stellato)
 
 [![LinkedIn](https://custom-icon-badges.demolab.com/badge/LinkedIn-Arthur--Stellato-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/arthurstellato)
-## Licença
+---
 
+## Licença
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 Distribuído sob a licença MIT. Veja o arquivo [LICENSE](LICENSE).
