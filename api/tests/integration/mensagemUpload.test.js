@@ -20,8 +20,16 @@ function gerarToken(sub = DOADOR_ID) {
   return jwt.sign({ sub, tipo: 'usuario' }, process.env.JWT_SECRET, { expiresIn: '15m' });
 }
 
+beforeEach(() => {
+  prisma.usuario.findUnique.mockResolvedValue({ emailVerificado: true });
+});
+
 function listarArquivosNoDisco() {
   return fs.readdirSync(DIRETORIO_UPLOADS_MENSAGENS);
+}
+
+function arquivosNovos(antes) {
+  return listarArquivosNoDisco().filter((nome) => !antes.includes(nome));
 }
 
 describe('POST /solicitacoes/:id/mensagens/anexo', () => {
@@ -39,8 +47,7 @@ describe('POST /solicitacoes/:id/mensagens/anexo', () => {
     expect(res.body.tipo).toBe('imagem');
     expect(res.body.url).toMatch(/^\/uploads\/mensagens\/.+\.jpg$/);
 
-    const depois = listarArquivosNoDisco();
-    expect(depois.length).toBe(antes.length + 1);
+    expect(arquivosNovos(antes)).toHaveLength(1);
   });
 
   test('upload de vídeo válido: 201, { url, tipo: "video" }', async () => {
@@ -65,7 +72,7 @@ describe('POST /solicitacoes/:id/mensagens/anexo', () => {
       .attach('arquivo', Buffer.from('%PDF-1.4 fake'), { filename: 'documento.pdf', contentType: 'application/pdf' });
 
     expect(res.status).toBe(400);
-    expect(listarArquivosNoDisco()).toEqual(antes);
+    expect(arquivosNovos(antes)).toEqual([]);
   });
 
   test('imagem acima de 5MB: 400, "excede o limite" e arquivo limpo do disco', async () => {
@@ -79,7 +86,7 @@ describe('POST /solicitacoes/:id/mensagens/anexo', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.erro).toMatch(/excede o limite/);
-    expect(listarArquivosNoDisco()).toEqual(antes);
+    expect(arquivosNovos(antes)).toEqual([]);
   });
 
   test('vídeo acima de 50MB: 400, "excede o limite" e arquivo limpo do disco', async () => {
@@ -93,7 +100,7 @@ describe('POST /solicitacoes/:id/mensagens/anexo', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.erro).toMatch(/excede o limite/);
-    expect(listarArquivosNoDisco()).toEqual(antes);
+    expect(arquivosNovos(antes)).toEqual([]);
   });
 
   test('usuário que não é doador nem solicitante daquela solicitação: 403, e o arquivo já gravado pelo multer é removido', async () => {
@@ -109,7 +116,7 @@ describe('POST /solicitacoes/:id/mensagens/anexo', () => {
     expect(res.status).toBe(403);
     // O multer grava o arquivo ANTES do controller validar participação — o ponto
     // central deste teste é confirmar que o controller limpa esse arquivo órfão depois.
-    expect(listarArquivosNoDisco()).toEqual(antes);
+    expect(arquivosNovos(antes)).toEqual([]);
   });
 
   test('sem nenhum arquivo anexado no form-data: 400, "Nenhum arquivo enviado"', async () => {

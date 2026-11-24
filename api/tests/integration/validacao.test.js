@@ -695,6 +695,7 @@ describe('POST /solicitacoes/:id/mensagens', () => {
   });
 
   test('aceita anexoUrl interno válido junto com anexoTipo, sem conteúdo', async () => {
+    prisma.usuario.findUnique.mockResolvedValueOnce({ emailVerificado: true });
     prisma.solicitacaoItem.findUnique.mockResolvedValue({
       id: UUID_VALIDO,
       status: 'aceita',

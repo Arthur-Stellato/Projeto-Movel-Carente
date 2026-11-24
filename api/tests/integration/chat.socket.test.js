@@ -35,6 +35,10 @@ afterEach(() => {
   while (socketsAbertos.length) socketsAbertos.pop().disconnect();
 });
 
+beforeEach(() => {
+  prisma.usuario.findUnique.mockResolvedValue({ emailVerificado: true });
+});
+
 function conectar(token) {
   return new Promise((resolve, reject) => {
     const socket = ioClient(url, {
