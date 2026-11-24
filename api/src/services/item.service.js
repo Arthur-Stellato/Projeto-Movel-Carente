@@ -8,7 +8,7 @@ const PAGINA_TAMANHO_PADRAO = 12;
 const MAX_IMAGENS_POR_ITEM = 10;
 
 const { ErroDominio } = require('../lib/erros');
-class ErroItem extends ErroDominio {}
+class ErroItem extends ErroDominio { }
 
 async function validarCategoriaAtiva(categoriaId) {
   const categoria = await prisma.categoria.findUnique({ where: { id: categoriaId } });
@@ -113,7 +113,15 @@ async function listar({ categoriaId, cidade, estado, busca, lat, lng, raioKm, pa
   const where = { status: 'disponivel', deletadoEm: null };
 
   if (categoriaId) where.categoriaId = categoriaId;
-  if (cidade) where.cidade = { equals: cidade, mode: 'insensitive' };
+  if (cidade) {
+    // Prisma não chama unaccent() dentro de where: uma consulta crua acha os ids
+    // compatíveis e o resto (paginação, include, contagem) segue no Prisma normal.
+    const linhas = await prisma.$queryRaw`
+    SELECT id FROM itens_doacao
+    WHERE status::text = 'disponivel' AND deletado_em IS NULL
+      AND unaccent(cidade) ILIKE unaccent(${`%${cidade}%`})`;
+    where.id = { in: linhas.map((linha) => linha.id) };
+  }
   if (estado) where.estado = estado.toUpperCase();
   if (busca) {
     where.OR = [
@@ -164,8 +172,8 @@ async function listarPorRaio({ lat, lng, raioKm, categoriaId, cidade, estado, bu
     valores.push(categoriaId);
   }
   if (cidade) {
-    condicoes.push(`cidade ILIKE $${proximoIndice()}`);
-    valores.push(cidade);
+    condicoes.push(`unaccent(cidade) ILIKE unaccent($${proximoIndice()})`);
+    valores.push(`%${cidade}%`);
   }
   if (estado) {
     condicoes.push(`estado::text = $${proximoIndice()}`);

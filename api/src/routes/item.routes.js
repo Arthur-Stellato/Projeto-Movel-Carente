@@ -121,7 +121,7 @@ router.get('/:id', validarUuidParam('id'), autenticarOpcional, itemController.bu
  *       400: { $ref: '#/components/responses/DadosInvalidos' }
  *       401: { $ref: '#/components/responses/NaoAutorizado' }
  */
-router.post('/', autenticar, exigirEmailVerificado, validar(itemValidation.criar), itemController.criar);
+router.post('/', autenticar, validar(itemValidation.criar), exigirEmailVerificado, itemController.criar);
 
 /**
  * @swagger
