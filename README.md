@@ -162,7 +162,8 @@ Com o backend rodando:
 
 ---
 
-## 📄 Licença
+## Licença
 
-<!-- Defina a licença do projeto (ex.: MIT) e crie o arquivo LICENSE. -->
-A definir.
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
+Distribuído sob a licença MIT. Veja o arquivo [LICENSE](LICENSE).
