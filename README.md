@@ -19,9 +19,11 @@ Quem tem algo parado em casa anuncia. Quem precisa solicita. Simples assim.
 </div>
 
 ---
+<div align="center">
+  
+# Screenshots (Protótipos Via Figma)
 
-## Screenshots (Protótipos Via Figma)
-
+</div>
 <p align="center">
   <img src="./docs/Land.png" width="45%" alt="Home" />
   <img src="./docs/Land 2.png" width="45%" alt="Home Part 2" />
@@ -35,7 +37,7 @@ Quem tem algo parado em casa anuncia. Quem precisa solicita. Simples assim.
 
 O **MóvelCarente** conecta **doadores**, que anunciam itens físicos, com **pessoas da comunidade**, que solicitam esses itens. Foi pensado pro mercado brasileiro: CPF/CNPJ, CEP com preenchimento automático, busca por proximidade e telefones no formato BR.
 
-É um projeto pessoal de portfólio, construído de ponta a ponta (API, banco, tempo real, front-end e testes).
+É um projeto pessoal de portfólio, construído de ponta a ponta (API, banco, tempo real e testes). O front-end do repositório é um cliente de testes, e a interface final está nos protótipos do Figma acima.
 
 ---
 
@@ -148,7 +150,7 @@ Com o backend rodando:
 - [ ] Migrar uploads de disco local pra armazenamento S3-compatível
 - [ ] Deploy do backend (Socket.IO e worker do BullMQ precisam de processo persistente)
 - [ ] Adapter Redis no Socket.IO pra suportar múltiplas instâncias
-- [ ] Polimento visual do front-end
+- [ ] Implementar o front-end a partir do protótipo do Figma
 
 ---
 
@@ -156,12 +158,9 @@ Com o backend rodando:
 
 **Arthur Stellato**, estudante de Análise e Desenvolvimento de Sistemas na UTFPR.
 
-[![GitHub](https://img.shields.io/badge/GitHub-Yakino41-181717?logo=github)](https://github.com/Arthur-Stellatolin)
+[![GitHub](https://img.shields.io/badge/GitHub-Arthur--Stellato-181717?logo=github)](https://github.com/Arthur-Stellato)
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-ArthurStellato-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/arthurstellato)
-
----
-
+[![LinkedIn](https://custom-icon-badges.demolab.com/badge/LinkedIn-Arthur--Stellato-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/arthurstellato)
 ## Licença
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
