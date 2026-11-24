@@ -120,7 +120,7 @@ A API sobe em `http://localhost:3000` (ajuste conforme seu `.env`) e a documenta
 ### 4. Frontend
 
 ```bash
-cd ../frontend   # ajuste se a pasta tiver outro nome
+cd ../fron-tend
 npm install
 npm run dev
 ```
