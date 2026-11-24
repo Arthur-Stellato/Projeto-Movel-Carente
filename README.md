@@ -18,20 +18,38 @@ Quem tem algo parado em casa anuncia. Quem precisa solicita. Simples assim.
 
 </div>
 
----
 <div align="center">
+
+---
   
-# Screenshots (Protótipos Via Figma)
+## Telas (protótipo no Figma)
+
+> Esta é a **interface planejada**, desenhada no Figma. O front-end do repositório é só um cliente de testes da API.
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/Land.png" alt="Página inicial"><br>
+      <sub>Página inicial</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/Land 2.png" alt="Página inicial, continuação"><br>
+      <sub>Página inicial (continuação)</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="docs/Moveis.png" alt="Listagem de móveis"><br>
+      <sub>Listagem de itens</sub>
+    </td>
+    <td align="center">
+      <img src="docs/Chat.png" alt="Chat em tempo real"><br>
+      <sub>Chat em tempo real</sub>
+    </td>
+  </tr>
+</table>
 
 </div>
-<p align="center">
-  <img src="./docs/Land.png" width="45%" alt="Home" />
-  <img src="./docs/Land 2.png" width="45%" alt="Home Part 2" />
-  <img src="./docs/Moveis.png" width="45%" alt="Listagem de Móveis" />
-  <img src="./docs/Chat.png" width="45%" alt="Chat em tempo real" />
-</p>
-
----
 
 ## Sobre o projeto
 
@@ -161,6 +179,7 @@ Com o backend rodando:
 [![GitHub](https://img.shields.io/badge/GitHub-Arthur--Stellato-181717?logo=github)](https://github.com/Arthur-Stellato)
 
 [![LinkedIn](https://custom-icon-badges.demolab.com/badge/LinkedIn-Arthur--Stellato-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/arthurstellato)
+
 ---
 
 ## Licença
