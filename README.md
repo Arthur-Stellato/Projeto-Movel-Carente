@@ -156,11 +156,9 @@ Com o backend rodando:
 
 **Arthur Stellato**, estudante de Análise e Desenvolvimento de Sistemas na UTFPR.
 
-[![GitHub](https://img.shields.io/badge/GitHub-Yakino41-181717?logo=github)](https://github.com/Yakino41)
+[![GitHub](https://img.shields.io/badge/GitHub-Yakino41-181717?logo=github)](https://github.com/Arthur-Stellatolin)
 
-<!-- Se quiser, adicione seu LinkedIn aqui:
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-seu--perfil-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/SEU-PERFIL)
--->
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-ArthurStellato-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/arthurstellato)
 
 ---
 
