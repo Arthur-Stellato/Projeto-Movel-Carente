@@ -20,17 +20,14 @@ Quem tem algo parado em casa anuncia. Quem precisa solicita. Simples assim.
 
 ---
 
-## Screenshots
+## Screenshots (Protótipos Via Figma)
 
-<!-- Quando tiver os prints, coloque em docs/screenshots e descomente. -->
-<!--
 <p align="center">
-  <img src="./docs/screenshots/home.png" width="45%" alt="Listagem de itens" />
-  <img src="./docs/screenshots/chat.png" width="45%" alt="Chat em tempo real" />
+  <img src="./docs/Land.png" width="45%" alt="Home" />
+  <img src="./docs/Land 2.png" width="45%" alt="Home Part 2" />
+  <img src="./docs/Moveis.png" width="45%" alt="Listagem de Móveis" />
+  <img src="./docs/Chat.png" width="45%" alt="Chat em tempo real" />
 </p>
--->
-
-*Em breve.*
 
 ---
 
